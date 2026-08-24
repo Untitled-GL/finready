@@ -2,10 +2,26 @@ openapi: 3.1.0
 
 info:
   title: FinReady API
-  version: 1.4.2
+  version: 1.4.3
   description: |
     FinReady MVP 백엔드 API 계약.
     기준: **PRD v1.3.1 DEV FREEZE §7.6 / §12 + Backend TRD v1.2.3**.
+
+    ## v1.4.2 → v1.4.3 변경 (데모 preset 서버 이관 — TRD §18 Step 11)
+    - **`DemoProductResponse.demoPresets` 추가.** S02 '샘플 상담 내용 채우기'가 쓰는
+      상담문·보완문을 서버가 내려준다. 지금까지 프론트 상수(`constants/demo.ts`)에
+      있었는데, 그 텍스트는 실 LLM으로 채점된 적이 없어 **심사위원이 보는 상담문과
+      Risk 49/54 · Gate 6/6을 실측한 상담문이 서로 다른 글**이었다. 서버가 내려주는
+      값은 `eval/demo_seed.json`의 `CONS_A_001`(main) / `CONS_A_003`(safety)과
+      한 글자도 다르지 않으며, 그 동일성은 백엔드 테스트가 강제한다.
+    - **`DemoProductResponse.demoAnswers` 추가.** S04 답변 채우기 원문.
+      `expectedLabel`(UnderstandingStatus)로 정답/오해/애매를 구분한다.
+      1회차·재확인 구분은 없다 — 평가 데이터셋에 재확인 전용 답변이 없고,
+      지어내면 채점 이력 없는 문장이 데모에 섞인다.
+    - `DemoPreset.supplementTranscript`는 **nullable**이다. 채점된 보완문이 있는
+      시나리오만 갖는다(safety에는 없다). null이면 보완 채우기를 노출하지 않는다.
+    - 두 필드 모두 optional이라 기존 소비자는 그대로 동작한다.
+      `GET /products/demo`는 리소스에서 읽은 값을 붙일 뿐이라 쿼리 수가 늘지 않는다.
 
     ## v1.4.1 → v1.4.2 변경 (FE 계약 검수 반영)
     - **후속 질문(attempt 2)을 모든 경로에서 제공한다.** `UnderstandingResponse`에
@@ -776,6 +792,49 @@ components:
         customers:
           type: array
           items: { $ref: "#/components/schemas/CustomerProfile" }
+        demoPresets:
+          type: array
+          description: |
+            데모 상담문 preset (TRD §18 Step 11). 서버가 원문을 갖는다.
+            값은 평가 데이터셋의 상담문과 동일하므로, 데모에서 보이는 판정 결과가
+            곧 정확도를 실측한 그 상담문의 결과다.
+          items: { $ref: "#/components/schemas/DemoPreset" }
+        demoAnswers:
+          type: array
+          description: |
+            S04 고객 답변 채우기 원문. 한 riskId에 라벨별로 여러 건이 온다.
+          items: { $ref: "#/components/schemas/DemoAnswer" }
+
+    DemoPreset:
+      type: object
+      required: [id, label, transcript]
+      properties:
+        id: { type: string, examples: ["main", "safety"] }
+        label:
+          type: string
+          examples: ["대표 데모 - 조기상환 조건 누락 + 원금보장 오해 유발"]
+        transcript:
+          type: string
+          description: S02 상담 내용 채우기 원문.
+        supplementTranscript:
+          type: [string, "null"]
+          description: |
+            보완 설명 채우기 원문. **null일 수 있다** - 채점된 보완문이 있는 시나리오만 갖는다.
+            null이면 보완 채우기를 노출하지 않는다. 없는 자리를 지어낸 문장으로 메우면
+            데모가 측정 밖으로 나간다.
+
+    DemoAnswer:
+      type: object
+      required: [riskId, expectedLabel, answer]
+      properties:
+        riskId: { type: string, examples: ["R01"] }
+        expectedLabel:
+          allOf:
+            - $ref: "#/components/schemas/UnderstandingStatus"
+          description: |
+            이 답변에 대해 사람이 붙인 gold label. 정답/오해/애매 채우기 버튼을
+            가르는 값이며, 서버 판정 결과가 아니다.
+        answer: { type: string }
 
     ProductRisk:
       type: object
