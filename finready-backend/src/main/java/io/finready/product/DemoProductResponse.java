@@ -13,7 +13,9 @@ public record DemoProductResponse(
 		ProductView product,
 		List<RiskView> risks,
 		List<String> understandingCheckRiskIds,
-		List<CustomerView> customers
+		List<CustomerView> customers,
+		List<DemoPresetView> demoPresets,
+		List<DemoAnswerView> demoAnswers
 ) {
 
 	public record ProductView(
@@ -58,6 +60,38 @@ public record DemoProductResponse(
 					risk.getSourcePage(),
 					risk.getSourceText());
 		}
+	}
+
+	/**
+	 * TRD §18 Step 11 데모 preset. S02 '샘플 상담 내용 채우기' 가 쓴다.
+	 *
+	 * <p>{@code supplementTranscript} 는 nullable 이다 — 채점된 보완문이 있는 시나리오만 갖는다.
+	 * 없으면 프론트가 보완 채우기를 내려야 하며, 그 자리를 지어낸 문장으로 메우면 안 된다.
+	 */
+	public record DemoPresetView(
+			String id,
+			String label,
+			String transcript,
+			String supplementTranscript
+	) {
+	}
+
+	/**
+	 * S04 답변 채우기 원문. 한 riskId 에 여러 건이 오고 {@code expectedLabel} 로 구분한다.
+	 *
+	 * <p>expectedLabel 은 openapi UnderstandingStatus 값이지만 타입은 String 이다. 그 enum 이
+	 * understanding 패키지에 있고 그쪽이 이미 product 를 참조하므로, 여기서 되받으면 패키지 순환이
+	 * 된다. 값 검증은 빌드 타임에 {@code DemoPresetSeedParityTest} 가 한다 — 시드는 고정 데이터라
+	 * 런타임 검증이 필요 없다.
+	 *
+	 * <p>1회차/재확인 구분이 없다. eval 데이터셋에 재확인 전용 답변이 없기 때문이고, 지어내면
+	 * 채점 이력 없는 문장이 데모에 섞인다.
+	 */
+	public record DemoAnswerView(
+			String riskId,
+			String expectedLabel,
+			String answer
+	) {
 	}
 
 	public record CustomerView(

@@ -30,6 +30,36 @@
       "financialLiteracy": "NORMAL",
       "explanationLevel": "NORMAL",
       "synthetic": true
+    },
+    {
+      "id": "CUST_D",
+      "label": "파생상품 경험이 많은 고객",
+      "ageGroup": "40대",
+      "investmentExperience": "HIGH",
+      "financialLiteracy": "ADVANCED",
+      "explanationLevel": "NORMAL",
+      "synthetic": true,
+      "note": "InvestmentExperience.HIGH 와 FinancialLiteracy.ADVANCED 를 쓰는 유일한 preset 이다. 이 둘은 TRD §6 enum 목록에 있으나 시드에 한 번도 등장한 적이 없었다 — seed→엔티티 매핑이 실제로 통과되는지 확인되는 지점이다."
+    },
+    {
+      "id": "CUST_E",
+      "label": "첫 투자 고객",
+      "ageGroup": "20대",
+      "investmentExperience": "LOW",
+      "financialLiteracy": "BASIC",
+      "explanationLevel": "NORMAL",
+      "synthetic": true,
+      "note": "CUST_A 와 경험·문해력은 같고 explanationLevel 만 다르다. 질문·재설명 문구가 EASY 때문에 바뀌는 것인지, 나머지 두 값 때문인지 가르는 대조군이다."
+    },
+    {
+      "id": "CUST_F",
+      "label": "거래 경험은 있으나 용어가 어려운 고객",
+      "ageGroup": "60대",
+      "investmentExperience": "MEDIUM",
+      "financialLiteracy": "BASIC",
+      "explanationLevel": "EASY",
+      "synthetic": true,
+      "note": "경험과 문해력이 어긋나는 조합. 고령이 아니어도 EASY 가 필요할 수 있다는 것을 보여준다."
     }
   ],
   "consultations": [
@@ -49,7 +79,7 @@
         "R08": "NOT_FOUND",
         "R09": "NOT_FOUND"
       },
-          "text": "안녕하세요, 오늘 안내드릴 상품은 FinReady 지수연계증권 ELS 제1호입니다. 코스피200, S&P 500, 유로스톡스50 이렇게 세 개 지수를 기초자산으로 하는 3년 만기 상품이고요, 조건이 충족되면 세전 연 7.2%의 수익을 드립니다. 이 상품은 원금이 보장되는 상품은 아닙니다. 시장 상황에 따라 원금 손실이 발생할 수 있다는 점 말씀드립니다. 다만 이 상품은 낙인이 없는 노낙인 구조라서 투자하시는 동안 지수가 잠깐 많이 떨어지더라도 그것만으로 손실이 확정되지는 않습니다. 만기에는 세 지수 중에 가장 많이 떨어진 지수를 기준으로 상환금액이 결정되고요, 세 지수가 모두 처음 기준가격의 65% 이상이면 3년치 수익을 다 받으실 수 있습니다. 지수가 세 개라서 조건이 조금 더 까다로울 수는 있습니다. 궁금한 점 있으시면 말씀해 주세요.",
+      "text": "안녕하세요, 오늘 안내드릴 상품은 FinReady 지수연계증권 ELS 제1호입니다. 코스피200, S&P 500, 유로스톡스50 이렇게 세 개 지수를 기초자산으로 하는 3년 만기 상품이고요, 조건이 충족되면 세전 연 7.2%의 수익을 드립니다. 이 상품은 원금이 보장되는 상품은 아닙니다. 시장 상황에 따라 원금 손실이 발생할 수 있다는 점 말씀드립니다. 다만 이 상품은 낙인이 없는 노낙인 구조라서 투자하시는 동안 지수가 잠깐 많이 떨어지더라도 그것만으로 손실이 확정되지는 않습니다. 만기에는 세 지수 중에 가장 많이 떨어진 지수를 기준으로 상환금액이 결정되고요, 세 지수가 모두 처음 기준가격의 65% 이상이면 3년치 수익을 다 받으실 수 있습니다. 지수가 세 개라서 조건이 조금 더 까다로울 수는 있습니다. 궁금한 점 있으시면 말씀해 주세요.",
       "expectedGateResult": "GATE_BLOCKED",
       "expectedGateReason": "GATE_REQUIRED Risk 중 R02 INSUFFICIENT, R03/R08 NOT_FOUND",
       "staffSupplementText": "추가로 말씀드리면, 이 상품은 6개월마다 조기상환 평가일이 돌아오는데 그때마다 세 지수가 모두 정해진 기준 이상이어야 조기상환이 됩니다. 90퍼센트, 90퍼센트, 85퍼센트 이렇게 단계적으로 기준이 낮아지고요. 조건이 안 맞으면 상환이 안 되고 다음 차수로 넘어가서 투자금이 만기까지 묶일 수 있습니다. 그리고 손실이 날 경우 최대 손실은 원금 전액, 그러니까 마이너스 100퍼센트까지 가능합니다. 손실에 하한선은 따로 없습니다. 한 가지 더 말씀드리면, 이 상품은 예금자보호법에 따라 보호되지 않습니다. 은행 예금과 달리 예금보험공사의 보호 대상이 아니어서, 발행회사가 파산하면 투자금을 돌려받지 못할 수 있습니다.",

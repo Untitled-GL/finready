@@ -19,13 +19,16 @@ public class ProductQueryService {
 	private final ProductRepository productRepository;
 	private final ProductRiskRepository productRiskRepository;
 	private final CustomerProfileRepository customerProfileRepository;
+	private final DemoPresetCatalog demoPresetCatalog;
 
 	public ProductQueryService(ProductRepository productRepository,
 	                           ProductRiskRepository productRiskRepository,
-	                           CustomerProfileRepository customerProfileRepository) {
+	                           CustomerProfileRepository customerProfileRepository,
+	                           DemoPresetCatalog demoPresetCatalog) {
 		this.productRepository = productRepository;
 		this.productRiskRepository = productRiskRepository;
 		this.customerProfileRepository = customerProfileRepository;
+		this.demoPresetCatalog = demoPresetCatalog;
 	}
 
 	@Transactional(readOnly = true)
@@ -56,6 +59,9 @@ public class ProductQueryService {
 				DemoProductResponse.ProductView.from(product),
 				risks.stream().map(DemoProductResponse.RiskView::from).toList(),
 				understandingCheckRiskIds,
-				customers);
+				customers,
+				// 리소스에서 온 값이라 쿼리를 늘리지 않는다. §14.1 리전 교차 예산과 무관하다
+				demoPresetCatalog.presets(),
+				demoPresetCatalog.answers());
 	}
 }
