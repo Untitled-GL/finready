@@ -228,7 +228,7 @@ Hibernate가 실제 SQL을 만들어야 확인되므로, `@WebMvcTest` 쪽은 "�
   `local` 기동으로 `ddl-auto: validate` 통과 확인 = V1 DDL과 컬럼·타입·nullable 일치.
   `customer_profile`은 TRD §2.1 목록에 없어 시드라는 성격을 따라 `product/`에 뒀다 (2026-08-13)
 - **시드 로더 + 검증기** (TRD §4.5) — `CommandLineRunner`가 검증 후 upsert.
-  기동 로그 `시드 적재 완료 — product=PROD_A (A-2026-08-12-01), risk 9건, customerProfile 3건`.
+  기동 로그 `시드 적재 완료 — product=PROD_A (A-2026-08-12-01), risk 9건, customerProfile 6건`.
   고객 preset은 `seed/customer_profiles.json` 별도 파일로 뒀다(`$schema`가 다르므로).
   `static/documents/PROD_A/v1.0` → **`v1.0.pdf`로 이름 변경** — `documentUrl`이
   `/documents/PROD_A/v1.0.pdf`라 그대로 두면 프론트의 PDF 요청이 404다 (2026-08-14)
@@ -237,6 +237,19 @@ Hibernate가 실제 SQL을 만들어야 확인되므로, `@WebMvcTest` 쪽은 "�
   `GlobalExceptionHandler` / `RequestIdFilter` / `WebConfig`(CORS).
   응답은 엔티티가 아니라 `DemoProductResponse`로 변환한다 — `document_sha256` 같은
   계약 밖 컬럼이 새지 않게 (2026-08-14)
+- **데모 preset 서버 이관** (TRD §18 Step 11, openapi v1.4.3) — `DemoPresetCatalog`가
+  `seed/demo_presets.json`을 기동 시 읽어 `demoPresets`/`demoAnswers`로 내려준다.
+  DB 테이블을 만들지 않았다(TRD §4에 없는 표 + 런타임 불변 + 감사 대상 아님).
+  파일은 `eval/demo_seed.json`의 `CONS_A_001`(main)·`CONS_A_003`(safety) 사본이고
+  `SeedEvalParityTest`가 동일성을 빌드 타임에 강제한다 — **데모에서 보이는 판정 결과가
+  정확도를 실측한 그 상담문의 결과여야 하기 때문**이다. 이전에는 프론트 상수
+  `constants/demo.ts`에 채점 이력 없는 별개 텍스트가 있었다.
+  `safety`의 `supplementTranscript`는 `null`이다 — CONS_A_003에 채점된 보완문이 없다 (2026-08-24)
+- **고객 preset 3→6건** — `CUST_D`(HIGH/ADVANCED)·`CUST_E`·`CUST_F` 추가.
+  ⚠️ 세 enum 중 **동작에 영향을 주는 것은 `explanationLevel` 하나뿐**이다
+  (`ClaudeQuestionGenerator`, `ReExplanationService`). 나머지 둘은 어디서도 읽히지 않아
+  `CUST_B`와 `CUST_C`는 지금 동작상 구별되지 않는다. `InvestmentExperience.HIGH`와
+  `FinancialLiteracy.ADVANCED`는 `CUST_D` 전까지 시드에 한 번도 없었다 (2026-08-24)
 - **세션 / Revision / StateMachine** (TRD §5.1~5.3) — `common/StateMachine`에 전이표 전체.
   `POST /api/sessions`, `POST /api/sessions/{id}/revisions`(F02), `GET /api/sessions/{id}`.
   상태 변경은 `session.transitionTo(to, stateMachine)` 하나뿐이다 — StateMachine을 인자로
@@ -357,7 +370,7 @@ Hibernate가 실제 SQL을 만들어야 확인되므로, `@WebMvcTest` 쪽은 "�
 
 ### 검증한 것 (2026-08-14)
 - **F01 응답 ↔ openapi v1.4.2 대조**: `product` 7필드 일치,
-  `understandingCheckRiskIds`=`["R01","R02","R03"]`, `customers` 3건,
+  `understandingCheckRiskIds`=`["R01","R02","R03"]`, `customers` 3건(현재 6건),
   risks 9건의 정책 분포가 PRD §5 정책표와 일치
 - **계약 밖 컬럼 미노출 확인**: 응답에 `documentSha256`·`isLiveDemo`가 없다.
   엔티티 직렬화였으면 그대로 샜다
