@@ -302,11 +302,30 @@ Phase 2와 **동일 프로토콜** 15회. 대조군(N=1)은 **같은 세션에�
 
 ## Phase 7 — 문서·계약
 
-- `docs/openapi.yml` — "1회 batch call" 서술 수정, **버전 1.4.2→1.4.3**,
-  `finready-frontend/contracts/openapi.yml` 동기화까지 한 작업. L227-228(verifier 축소 금지
-  문구)는 손대지 않는다
+- `docs/openapi.yml` — "1회 batch call" 서술 수정, **버전 1.4.2→1.4.3**.
+  L227-228(verifier 축소 금지 문구)는 손대지 않는다
 - 이 문서를 최종 결과로 갱신 (상태를 "진행 중"→"완료"로)
 - 프론트 전달값: "실측 33초"를 Phase 5 결과로 갱신
+
+### ⚠️ 계약 사본 동기화 단계가 지금은 성립하지 않는다 (2026-08-24 확인)
+
+원래 여기 "`finready-frontend/contracts/openapi.yml` 동기화까지가 한 작업"이라 적어뒀는데,
+**그 파일이 2026-08-22에 삭제됐다** (`fdbbcf5` "fix: openapi.yml 파일 삭제", 프론트 담당자).
+`finready-frontend/contracts/` 디렉터리 자체가 없고 대체 파일도 없다.
+
+그 커밋은 **yml 하나만 지웠고 그 파일에 의존하는 두 곳을 같이 고치지 않았다**:
+- `finready-frontend/package.json:10` — `gen:api` 스크립트가 `contracts/openapi.yml`을
+  가리킨다. 타입 재생성이 불가능하다 (생성물 `generated/openapi.ts`는 커밋돼 있어 앱은 돈다)
+- `finready-frontend/src/shared/api/contract.test.ts:14` — 최상위에서 `readFileSync` 한다.
+  테스트 함수 안이 아니라 모듈 로드 시점이라 **파일이 없으면 스위트 전체가 에러**다
+
+**팀 결정이 필요하다.** 되돌릴지(`git checkout 3c95a38 -- finready-frontend/contracts/openapi.yml`),
+아니면 사본을 두지 않는 방식으로 갈지(그렇다면 `package.json`·`contract.test.ts`가
+`docs/openapi.yml`을 직접 보도록 고쳐야 한다). 정해지기 전에는 이 항목을 건너뛴다.
+
+**그리고 버전을 올리면 프론트 계약 테스트가 깨진다** — 삭제와 무관하게. `contract.test.ts`가
+`expect(spec).toContain("version: 1.4.2")`로 버전을 **하드코딩**해서 단언한다. Phase 7에서
+1.4.3으로 올리는 순간 그 단언이 실패하므로, 프론트와 함께 올려야 한다.
 
 ---
 
