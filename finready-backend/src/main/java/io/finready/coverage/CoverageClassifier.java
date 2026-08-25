@@ -21,8 +21,9 @@ import java.util.List;
 public interface CoverageClassifier {
 
 	/**
-	 * {@code coveragePolicy != NOT_APPLICABLE} 인 Risk 전체를 <b>1회 batch call</b> 로 분류한다.
-	 * Risk 마다 호출하면 9배의 요금과 레이턴시가 든다.
+	 * {@code coveragePolicy != NOT_APPLICABLE} 인 Risk 전체를 배치로 분류한다. 구현이 내부에서
+	 * 몇 번을 부르든 호출부에는 한 번이다. <b>Risk 마다 부르지는 않는다</b> — 고정 오버헤드를
+	 * 9번 물고 캐시도 9번 쓴다.
 	 */
 	List<RiskVerdict> classify(String sessionId, String transcript, List<RiskPrompt> risks);
 

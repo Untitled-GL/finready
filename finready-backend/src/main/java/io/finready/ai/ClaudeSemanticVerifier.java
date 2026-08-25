@@ -23,7 +23,7 @@ class ClaudeSemanticVerifier implements SemanticVerifier {
 	 * <p>v1 → v2: effort 명시(v1 은 안 걸어 기본 high 로 돌았다), reason 길이 제한.
 	 *
 	 * <p>v2 → v3: <b>분류기와 같은 핵심/부연 기준을 넣었다.</b> v2 까지는 이 기준이
-	 * 분류기(coverage-v2)에만 있어서, 분류기가 "부연이 빠진 건 EXPLAINED"로 판정한 것을
+	 * 분류기(당시 coverage-v2)에만 있어서, 분류기가 "부연이 빠진 건 EXPLAINED"로 판정한 것을
 	 * Verifier 가 옛 기준으로 다시 깎는 일이 관측됐다(R04: classifier EXPLAINED →
 	 * verifier INSUFFICIENT). 두 단계가 다른 잣대를 쓰면 경계 케이스가 실행마다 흔들린다.
 	 */
