@@ -133,8 +133,12 @@ classifier 단독 기준으로 읽어 "충족"으로 기록해뒀는데, 판정 
 **Step 5 작업 진행 중.** 전체 설계·진행 상황·다음 작업은
 `docs/decisions/2026-08-20-coverage-latency-fanout.md` — 새 세션은 이 파일부터 읽을 것.
 (2026-08-20) Phase 0(기록 정정)·Phase 1(계측: `llm_call_log` 토큰 컬럼) 완료.
-Phase 2(베이스라인 실측)부터 이어간다 — Docker로 `integrationTest`부터 돌려
-V4 마이그레이션을 검증할 것(직전 세션에서 Docker가 꺼져 있어 미검증).
+(2026-08-25) `integrationTest` 21건 통과로 V4 마이그레이션 검증 완료.
+(2026-08-25) **Phase 2(베이스라인 실측 + 회귀) 완료.** classifier 절편 **4,562ms**
+(n=31, 실 토큰 기준) — "~5.9초면 모델 교체 필요" 기준을 뚜렷이 밑돌아 **팬아웃이 유효**하다고
+판정. 3분할 시 classifier가 16.4s → 8.5s로 줄 것으로 예측(약 45~48% 단축).
+Phase 3(classifier 팬아웃 구현)이 다음 작업. 상세는
+`docs/decisions/2026-08-20-coverage-latency-fanout.md` "Phase 2 결과"
 
 **12초와 별개로 Coverage 엔드포인트에는 30초 계약 한도가 있다.** 둘을 섞지 말 것.
 
@@ -630,11 +634,12 @@ Guardrail 상세는 `docs/decisions/2026-08-19-guardrail-negation.md`.
 `understanding_result`·`risk_workflow_state` 10개가 있다.
 나머지(`staff_resolution`·`re_explanation`·`audit_event`·`llm_call_log`)는 해당 기능 작업에서 만든다.
 
-> **병행(배포 연동)**: F01이 생겨 프론트가 붙을 수 있다. 프론트에 배포 URL 전달 →
-> 프론트 `NEXT_PUBLIC_API_BASE_URL=https://finready-backend.onrender.com/api`,
-> 백엔드 `CORS_ALLOWED_ORIGINS`에 프론트 배포 도메인 추가.
-> CORS는 이제 `common/WebConfig`가 이 설정을 실제로 읽는다. 기본값이
-> `http://localhost:3000`이라 배포 도메인을 안 넣으면 배포 프론트에서 막힌다.
+> **병행(배포 연동)**: 프론트 배포 URL 확정 — `https://finready-rho.vercel.app` (2026-08-22).
+> Render `CORS_ALLOWED_ORIGINS`에 이 도메인 추가 필요(끝 슬래시 없이). 프론트는
+> `NEXT_PUBLIC_API_BASE_URL=https://finready-backend.onrender.com/api`를 Vercel 환경변수에
+> 넣고 재배포해야 반영된다. 둘 다 Render/Vercel 대시보드에서 직접 설정 — 코드로는 안 됨.
+> CORS는 `common/WebConfig`가 이 설정을 실제로 읽는다. 기본값이 `http://localhost:3000`이라
+> 위 값을 안 넣으면 배포 프론트에서 막힌다.
 
 > **TRD §18 Step 1 DoD 충족.** `연결 + Flyway + 시드 로더 + GET /products/demo` +
 > §3.4 검증 5항목이 모두 끝났다.
@@ -711,6 +716,17 @@ Guardrail 상세는 `docs/decisions/2026-08-19-guardrail-negation.md`.
   (2026-08-19). 그 상담문은 1,400자이고 **계약 상한은 8,000자**다. `timeout-seconds: 60`은
   SDK 타임아웃 모양만 바꿨을 뿐 **엔드포인트 한도와 무관하다.** 프론트 fetch 타임아웃과
   Render 프록시 한도도 배포 전 확인할 것
+- **LLM이 떨어져 있는 두 문장을 이어붙여 인용한다** — `docs/decisions/2026-08-22-evidence-stitching.md`.
+  R04에서 312자 떨어진 두 문장을 합쳐 내 `NOT_FOUND`로 무효화됐다(접합부에 `직원: `까지 지어냈다).
+  **분류기 판정 자체는 EXPLAINED로 맞았는데 근거를 대는 방식에서 걸린 것**이다.
+  2026-08-19에 R09에서 세운 **다요소 fact 가설의 실증**이며, `fact`가 두 요소이고 상담문에서
+  떨어져 있으면 연속 한 구간 제약상 빠져나갈 길이 없다. **조치는 (0) 현행 유지** —
+  Gate 영향이 없고, Step 5 팬아웃이 `coverage-v3`를 건드릴 예정이라 프롬프트를 두 갈래로
+  동시에 고치면 효과가 분리되지 않는다
+- **재분석은 텍스트 추가가 아니라 수정이다** — Coverage는 revision 단위 멱등이라 재분석하려면
+  새 revision이 필요한데, 같은 보완 문장을 또 이어붙이면 근거가 원문에 2회 매칭돼
+  `AMBIGUOUS`로 무효가 된다. 실제로 발생했다(위 문서 (a)). 또한 **보완 문장이 다른 주제의
+  배경정보를 흘리면 기존 문장의 완전성 기준이 올라가 판정이 되레 내려갈 수 있다**(같은 문서 (b))
 
 ## 처리 대기 (문서 동기화)
 
