@@ -67,7 +67,9 @@ public class ReportService {
 				.orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND,
 						"상담 세션을 찾을 수 없습니다."));
 
-		Optional<CoverageResponse> coverage = coverageQueryService.latestFor(session);
+		CoverageQueryService.CoverageReportSections coverageSections =
+				coverageQueryService.reportSectionsOf(session);
+		Optional<CoverageResponse> coverage = coverageSections.coverage();
 		List<RiskUnderstandingState> understanding = understandingQueryService.statesOf(session);
 		List<String> unresolvedRiskIds = closeEligibilityEvaluator.unresolvedRiskIds(understanding);
 
@@ -82,7 +84,7 @@ public class ReportService {
 				productViewOf(session),
 				coverage.map(ReportService::sectionOf).orElse(ReportResponse.CoverageSection.EMPTY),
 				understanding,
-				coverageQueryService.overrideRecordsOf(sessionId),
+				coverageSections.overrides(),
 				revisionRepository.findBySessionIdOrderByRevisionNoAsc(sessionId).stream()
 						.map(RevisionResponse::from)
 						.toList(),

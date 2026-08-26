@@ -162,8 +162,12 @@ public class SessionService {
 	public SessionSnapshotResponse getSnapshot(String sessionId) {
 		ConsultationSession session = loadSession(sessionId);
 
-		RevisionResponse currentRevision = revisionRepository
-				.findTopBySessionIdOrderByRevisionNoDesc(sessionId)
+		// Coverage 조회도 같은 최신 revision 이 필요하다. 여기서 한 번만 읽고 넘겨
+		// 왕복을 하나 아낀다(TRD §14.1) — CoverageQueryService.latestFor(session)
+		// 단독 호출이었으면 같은 쿼리를 또 날렸을 것이다.
+		Optional<ConsultationRevision> currentRevisionEntity = revisionRepository
+				.findTopBySessionIdOrderByRevisionNoDesc(sessionId);
+		RevisionResponse currentRevision = currentRevisionEntity
 				.map(RevisionResponse::from)
 				.orElse(null);
 
@@ -180,7 +184,7 @@ public class SessionService {
 				resumePointOf(session.getStatus()),
 				nextActionOf(session, understanding),
 				currentRevision,
-				coverageQueryService.latestFor(session).orElse(null),
+				coverageQueryService.latestFor(session, currentRevisionEntity).orElse(null),
 				understanding);
 	}
 

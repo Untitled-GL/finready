@@ -68,6 +68,13 @@ class ReportServiceTest {
 				new CloseEligibilityEvaluator(new StateMachine()));
 
 		when(sessionRepository.findById(SESSION_ID)).thenReturn(Optional.of(session()));
+		when(coverageQueryService.reportSectionsOf(any())).thenReturn(
+				new CoverageQueryService.CoverageReportSections(Optional.empty(), List.of()));
+	}
+
+	private void stubCoverage(CoverageResponse coverage) {
+		when(coverageQueryService.reportSectionsOf(any())).thenReturn(
+				new CoverageQueryService.CoverageReportSections(Optional.of(coverage), List.of()));
 	}
 
 	private ConsultationSession session() {
@@ -89,7 +96,7 @@ class ReportServiceTest {
 	@Test
 	@DisplayName("Coverage 섹션은 조회 서비스가 만든 값을 그대로 담는다")
 	void coverageSectionMirrorsQueryService() {
-		when(coverageQueryService.latestFor(any())).thenReturn(Optional.of(coverage(List.of())));
+		stubCoverage(coverage(List.of()));
 
 		ReportResponse report = reportService.getReport(SESSION_ID);
 
@@ -101,7 +108,7 @@ class ReportServiceTest {
 	@Test
 	@DisplayName("분석 전이면 coverage 는 null 이 아니라 빈 섹션이다")
 	void coverageSectionIsEmptyBeforeAnalysis() {
-		when(coverageQueryService.latestFor(any())).thenReturn(Optional.empty());
+		// setUp() 의 기본 스텁이 이미 Optional.empty() 다 — 분석 전 상태를 그대로 재사용한다
 
 		ReportResponse report = reportService.getReport(SESSION_ID);
 
@@ -146,8 +153,7 @@ class ReportServiceTest {
 		when(understandingQueryService.statesOf(any())).thenReturn(List.of(
 				new RiskUnderstandingState("R01", "제목", List.of(), null,
 						WorkflowStatus.COMPLETE, FinalDisposition.UNRESOLVED, null)));
-		when(coverageQueryService.latestFor(any()))
-				.thenReturn(Optional.of(coverage(List.of("R06"))));
+		stubCoverage(coverage(List.of("R06")));
 
 		ReportResponse report = reportService.getReport(SESSION_ID);
 

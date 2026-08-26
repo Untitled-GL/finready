@@ -3,6 +3,7 @@ package io.finready.coverage;
 import io.finready.product.CoveragePolicy;
 import io.finready.product.ProductRisk;
 import io.finready.product.ProductRiskRepository;
+import io.finready.session.ConsultationRevision;
 import io.finready.session.ConsultationRevisionRepository;
 import io.finready.session.ConsultationSession;
 import io.finready.session.SessionStatus;
@@ -53,38 +54,65 @@ public class CoverageQueryService {
 	 * DRAFT 세션을 새로고침한 정상적인 경우다.
 	 */
 	public Optional<CoverageResponse> latestFor(ConsultationSession session) {
-		return revisionRepository.findTopBySessionIdOrderByRevisionNoDesc(session.getId())
-				.flatMap(revision -> {
-					List<CoverageResult> results = coverageResultRepository
-							.findByRevisionIdOrderByRiskIdAsc(revision.getId());
-					if (results.isEmpty()) {
-						return Optional.empty();
-					}
-					return Optional.of(respond(session.getStatus(), session.getId(),
-							revision.getId(), results, analysableRisks(session.getProductId()),
-							// 이번 호출에서 잰 레이턴시가 없다. 0 을 넣으면 "0ms 에 끝났다"로 읽혀
-							// 관측 데이터가 오염된다
-							null));
-				});
+		return latestFor(session,
+				revisionRepository.findTopBySessionIdOrderByRevisionNoDesc(session.getId()));
 	}
 
 	/**
-	 * F08 리포트의 {@code overrides} 섹션. Gate 판정과 무관하게 <b>직원이 무엇을 넘겼는지</b>
-	 * 그대로 싣는다 — Override 로 열린 Gate 는 열렸다는 사실보다 사유가 중요하다.
-	 *
-	 * <p>{@code GateOverride} 엔티티를 패키지 밖으로 내보내지 않는다. 계약에 없는 컬럼이
-	 * 리포트로 새는 것을 막는 것은 F01 에서 {@code DemoProductResponse} 를 둔 것과 같은 이유다.
+	 * {@link #latestFor(ConsultationSession)} 와 같지만, 호출자가 최신 revision 을
+	 * 이미 조회해뒀다면 그 결과를 넘겨 중복 쿼리를 피한다(TRD §14.1, 리전 교차 왕복 절감).
+	 * {@code GET /sessions/{id}} 가 이 오버로드를 쓴다 — 스냅샷 응답에도 같은 revision 이
+	 * 필요해서 어차피 먼저 조회돼 있다.
 	 */
-	public List<CoverageResponse.OverrideView> overrideRecordsOf(String sessionId) {
-		return overridesOf(sessionId).values().stream()
+	public Optional<CoverageResponse> latestFor(ConsultationSession session,
+	                                            Optional<ConsultationRevision> currentRevision) {
+		return coverageOf(session, currentRevision, overridesOf(session.getId()));
+	}
+
+	/**
+	 * F08 리포트 전용. Coverage 섹션과 {@code overrides} 섹션이 같은 {@code gate_override}
+	 * 조회를 공유한다 — 따로 부르면({@link #latestFor}로 Coverage를, 별도 호출로 overrides를
+	 * 각각 읽으면) 세션당 왕복이 하나 더 든다(TRD §14.1, 리전 교차 비용).
+	 */
+	public CoverageReportSections reportSectionsOf(ConsultationSession session) {
+		Map<String, GateOverride> overrides = overridesOf(session.getId());
+		Optional<CoverageResponse> coverage = coverageOf(session,
+				revisionRepository.findTopBySessionIdOrderByRevisionNoDesc(session.getId()),
+				overrides);
+		List<CoverageResponse.OverrideView> overrideViews = overrides.values().stream()
 				.map(CoverageResponse.OverrideView::from)
 				.toList();
+		return new CoverageReportSections(coverage, overrideViews);
+	}
+
+	/** {@link #reportSectionsOf} 의 반환값. {@code GateOverride} 엔티티는 이 안에서도 나가지 않는다. */
+	public record CoverageReportSections(Optional<CoverageResponse> coverage,
+	                                     List<CoverageResponse.OverrideView> overrides) {
+	}
+
+	private Optional<CoverageResponse> coverageOf(ConsultationSession session,
+	                                              Optional<ConsultationRevision> currentRevision,
+	                                              Map<String, GateOverride> overrides) {
+		return currentRevision.flatMap(revision -> {
+			List<CoverageResult> results = coverageResultRepository
+					.findByRevisionIdOrderByRiskIdAsc(revision.getId());
+			if (results.isEmpty()) {
+				return Optional.empty();
+			}
+			return Optional.of(respond(session.getStatus(), session.getId(),
+					revision.getId(), results, analysableRisks(session.getProductId()),
+					overrides,
+					// 이번 호출에서 잰 레이턴시가 없다. 0 을 넣으면 "0ms 에 끝났다"로 읽혀
+					// 관측 데이터가 오염된다
+					null));
+		});
 	}
 
 	/**
 	 * 저장된 결과 + 현재 Override 로 Gate 를 다시 판정해 응답을 만든다.
 	 *
-	 * <p>{@link CoverageAnalysisService} 의 멱등 경로와 Override 경로가 함께 쓴다.
+	 * <p>{@link CoverageAnalysisService} 의 멱등 재사용 경로가 쓴다 — Override 를
+	 * 아직 조회해두지 않았으므로 여기서 새로 읽는다.
 	 */
 	CoverageResponse respond(SessionStatus status,
 	                         String sessionId,
@@ -92,8 +120,18 @@ public class CoverageQueryService {
 	                         List<CoverageResult> results,
 	                         Map<String, ProductRisk> risksById,
 	                         CoverageResponse.AnalysisView analysis) {
+		return respond(status, sessionId, revisionId, results, risksById,
+				overridesOf(sessionId), analysis);
+	}
 
-		Map<String, GateOverride> overrides = overridesOf(sessionId);
+	/** Override 를 이미 조회해둔 호출자용 — {@link #coverageOf} 가 쓴다. */
+	private CoverageResponse respond(SessionStatus status,
+	                                 String sessionId,
+	                                 Long revisionId,
+	                                 List<CoverageResult> results,
+	                                 Map<String, ProductRisk> risksById,
+	                                 Map<String, GateOverride> overrides,
+	                                 CoverageResponse.AnalysisView analysis) {
 		GateEvaluator.GateVerdict verdict =
 				gateEvaluator.evaluate(results, policiesOf(risksById), overrides.keySet());
 
