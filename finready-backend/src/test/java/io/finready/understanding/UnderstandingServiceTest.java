@@ -59,6 +59,7 @@ class UnderstandingServiceTest {
 	private final QuestionGenerator questionGenerator = mock(QuestionGenerator.class);
 	private final AnswerJudge answerJudge = mock(AnswerJudge.class);
 	private final UnderstandingWriter writer = mock(UnderstandingWriter.class);
+	private final UnderstandingQueryService understandingQueryService = mock(UnderstandingQueryService.class);
 
 	private final WorkflowStateMachine workflowStateMachine = new WorkflowStateMachine();
 
@@ -70,7 +71,7 @@ class UnderstandingServiceTest {
 				sessionRepository, productRiskRepository, customerProfileRepository,
 				gateOverrideRepository, questionRepository, resultRepository, workflowStateRepository,
 				staffResolutionRepository, questionGenerator, answerJudge, new NextActionResolver(),
-				workflowStateMachine, writer, new StateMachine());
+				workflowStateMachine, writer, new StateMachine(), understandingQueryService);
 
 		when(sessionRepository.findById(SESSION_ID))
 				.thenReturn(Optional.of(session(SessionStatus.COVERAGE_ANALYZED)));
@@ -82,6 +83,28 @@ class UnderstandingServiceTest {
 		when(questionGenerator.phrase(anyString(), anyList())).thenReturn(List.of());
 		when(writer.saveAnswer(anyString(), any(), any(), any(), anyBooleanArg(), any()))
 				.thenReturn(SessionStatus.UNDERSTANDING_IN_PROGRESS);
+		when(writer.saveStaffResolution(anyString(), any(), any(), anyBooleanArg(), any()))
+				.thenReturn(SessionStatus.AWAITING_STAFF_REVIEW);
+		// F07 테스트 대부분은 riskState 의 내용까지는 안 본다 — 필요한 테스트만 개별 재정의한다
+		when(understandingQueryService.statesOf(any())).thenReturn(List.of(
+				riskState("R01", WorkflowStatus.COMPLETE, FinalDisposition.RESOLVED_BY_STAFF, null)));
+	}
+
+	/**
+	 * {@code resolveByStaff} 가 응답 조립에 쓰는 {@link UnderstandingQueryService} 는 mock이다 —
+	 * 그 조립 로직 자체({@code RiskUnderstandingState} 를 어떻게 만드는지)는
+	 * {@code UnderstandingQueryServiceTest} 가 별도로 검증한다. 여기서는 이 서비스가
+	 * 받은 값을 그대로 응답에 싣는지만 본다.
+	 */
+	private RiskUnderstandingState riskState(String riskId, WorkflowStatus workflowStatus,
+	                                         FinalDisposition finalDisposition,
+	                                         UnderstandingStatus lastAiStatus) {
+		List<RiskUnderstandingState.AttemptView> attempts = lastAiStatus == null
+				? List.of()
+				: List.of(new RiskUnderstandingState.AttemptView(
+						1, "q", null, "a", null, lastAiStatus, "reason"));
+		return new RiskUnderstandingState(riskId, "제목", attempts, null,
+				workflowStatus, finalDisposition, null);
 	}
 
 	private static boolean anyBooleanArg() {
@@ -468,11 +491,14 @@ class UnderstandingServiceTest {
 		@Test
 		@DisplayName("RESOLVED_BY_STAFF 면 COMPLETE / RESOLVED_BY_STAFF 로 종결된다")
 		void resolvedByStaff() {
+			when(understandingQueryService.statesOf(any())).thenReturn(List.of(
+					riskState("R01", WorkflowStatus.COMPLETE, FinalDisposition.RESOLVED_BY_STAFF, null)));
+
 			StaffResolutionResponse response = service.resolveByStaff(SESSION_ID, "R01",
 					new StaffResolutionRequest(StaffDisposition.RESOLVED_BY_STAFF, "구두로 다시 설명함", "staff-1"));
 
-			assertThat(response.workflowStatus()).isEqualTo(WorkflowStatus.COMPLETE);
-			assertThat(response.finalDisposition()).isEqualTo(FinalDisposition.RESOLVED_BY_STAFF);
+			assertThat(response.riskState().workflowStatus()).isEqualTo(WorkflowStatus.COMPLETE);
+			assertThat(response.riskState().finalDisposition()).isEqualTo(FinalDisposition.RESOLVED_BY_STAFF);
 		}
 
 		@Test
@@ -483,11 +509,13 @@ class UnderstandingServiceTest {
 					.thenReturn(Optional.of(r01));
 			when(workflowStateRepository.findBySessionIdOrderByRiskIdAsc(SESSION_ID))
 					.thenReturn(List.of(r01, new RiskWorkflowState(SESSION_ID, "R02")));
+			when(understandingQueryService.statesOf(any())).thenReturn(List.of(
+					riskState("R01", WorkflowStatus.COMPLETE, FinalDisposition.UNRESOLVED, null)));
 
 			StaffResolutionResponse response = service.resolveByStaff(SESSION_ID, "R01",
 					new StaffResolutionRequest(StaffDisposition.UNRESOLVED, "고객이 이해를 거부함", "staff-1"));
 
-			assertThat(response.finalDisposition()).isEqualTo(FinalDisposition.UNRESOLVED);
+			assertThat(response.riskState().finalDisposition()).isEqualTo(FinalDisposition.UNRESOLVED);
 			assertThat(response.nextAction()).isEqualTo(NextAction.NEXT_RISK);
 		}
 
@@ -498,13 +526,17 @@ class UnderstandingServiceTest {
 			when(second.getAiStatus()).thenReturn(UnderstandingStatus.MISUNDERSTOOD);
 			when(resultRepository.findBySessionIdAndRiskIdOrderByAttemptAsc(SESSION_ID, "R01"))
 					.thenReturn(List.of(second));
+			when(understandingQueryService.statesOf(any())).thenReturn(List.of(
+					riskState("R01", WorkflowStatus.COMPLETE, FinalDisposition.RESOLVED_BY_STAFF,
+							UnderstandingStatus.MISUNDERSTOOD)));
 
 			StaffResolutionResponse response = service.resolveByStaff(SESSION_ID, "R01",
 					new StaffResolutionRequest(StaffDisposition.RESOLVED_BY_STAFF, "구두로 다시 설명함", "staff-1"));
 
 			// 직원이 해결해도 AI 는 여전히 MISUNDERSTOOD 다. 리포트에 둘 다 표시된다
-			assertThat(response.aiStatus()).isEqualTo(UnderstandingStatus.MISUNDERSTOOD);
-			assertThat(response.finalDisposition()).isEqualTo(FinalDisposition.RESOLVED_BY_STAFF);
+			assertThat(response.riskState().attempts().getLast().aiStatus())
+					.isEqualTo(UnderstandingStatus.MISUNDERSTOOD);
+			assertThat(response.riskState().finalDisposition()).isEqualTo(FinalDisposition.RESOLVED_BY_STAFF);
 			verify(resultRepository, never()).save(any());
 		}
 

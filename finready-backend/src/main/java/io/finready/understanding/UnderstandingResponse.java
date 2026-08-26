@@ -3,7 +3,7 @@ package io.finready.understanding;
 import io.finready.common.GenerationSource;
 
 /**
- * openapi.yml v1.4.2 UnderstandingResponse — {@code /understanding} 과 {@code /recheck} 공용.
+ * openapi.yml UnderstandingResponse — {@code /understanding} 과 {@code /recheck} 공용.
  * required 는 [riskId, attempt, remainingAttempts, aiStatus, workflowStatus, nextAction] 다.
  *
  * <p>{@code aiStatus} 와 {@code finalDisposition} 을 <b>둘 다</b> 싣는다. 직원이 해결해도
@@ -14,6 +14,9 @@ import io.finready.common.GenerationSource;
  * @param recheckQuestion   <b>{@code nextAction=RECHECK} 일 때만</b> 값이 있다.
  *                          UNCERTAIN 은 재설명을 거치지 않으므로 이 응답이 후속 질문을
  *                          제공하는 유일한 지점이다 (PRD §7.5)
+ * @param progress          FE가 "Risk {currentRiskIndex}/{totalRiskCount}"를 직접 세지 않게
+ *                          서버가 계산해 내려준다(규칙 8). TRD §17 계약 대조 테스트가
+ *                          이 필드의 누락을 실제로 잡아냈다(2026-08-26)
  */
 public record UnderstandingResponse(
 		String riskId,
@@ -28,6 +31,7 @@ public record UnderstandingResponse(
 		FinalDisposition finalDisposition,
 		NextAction nextAction,
 		String recheckQuestion,
-		GenerationSource recheckQuestionSource
+		GenerationSource recheckQuestionSource,
+		Progress progress
 ) {
 }

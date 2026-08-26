@@ -59,6 +59,7 @@ public class UnderstandingService {
 	private final WorkflowStateMachine workflowStateMachine;
 	private final UnderstandingWriter writer;
 	private final StateMachine stateMachine;
+	private final UnderstandingQueryService understandingQueryService;
 
 	public UnderstandingService(ConsultationSessionRepository sessionRepository,
 	                            ProductRiskRepository productRiskRepository,
@@ -73,7 +74,8 @@ public class UnderstandingService {
 	                            NextActionResolver nextActionResolver,
 	                            WorkflowStateMachine workflowStateMachine,
 	                            UnderstandingWriter writer,
-	                            StateMachine stateMachine) {
+	                            StateMachine stateMachine,
+	                            UnderstandingQueryService understandingQueryService) {
 		this.sessionRepository = sessionRepository;
 		this.productRiskRepository = productRiskRepository;
 		this.customerProfileRepository = customerProfileRepository;
@@ -88,6 +90,7 @@ public class UnderstandingService {
 		this.workflowStateMachine = workflowStateMachine;
 		this.writer = writer;
 		this.stateMachine = stateMachine;
+		this.understandingQueryService = understandingQueryService;
 	}
 
 	/**
@@ -209,23 +212,27 @@ public class UnderstandingService {
 		NextAction nextAction = nextActionResolver
 				.afterStaffResolution(hasRemainingRisk(sessionId, riskId));
 
-		writer.saveStaffResolution(sessionId, resolution, workflowState,
+		SessionStatus sessionStatus = writer.saveStaffResolution(sessionId, resolution, workflowState,
 				nextAction == NextAction.GO_TO_REPORT,
 				AuditEntry.staff(AuditEventType.STAFF_RESOLUTION_RECORDED, actor,
 						"riskId=" + riskId
 								+ ", disposition=" + request.disposition()
 								+ ", finalDisposition=" + disposition));
 
+		// 쓰기가 이미 커밋된 뒤라(UnderstandingWriter가 별도 트랜잭션) 방금 저장한
+		// staffResolution·workflowState까지 반영된 상태를 그대로 다시 읽는다 — 조립 규칙이
+		// GET /sessions/{id}와 두 곳으로 갈라지지 않는다
+		RiskUnderstandingState riskState = understandingQueryService.statesOf(session).stream()
+				.filter(state -> state.riskId().equals(riskId))
+				.findFirst()
+				.orElseThrow(() -> new IllegalStateException(
+						"방금 처리한 riskId 를 다시 못 찾았다: " + riskId));
+
 		return new StaffResolutionResponse(
-				riskId,
-				resolution.getDisposition(),
-				resolution.getReason(),
-				resolution.getActor(),
-				latestAiStatus(sessionId, riskId),
-				workflowState.getWorkflowStatus(),
-				workflowState.getFinalDisposition(),
+				riskState,
 				nextAction,
-				resolution.getCreatedAt());
+				progressOf(questionTargets(session), riskId),
+				sessionStatus);
 	}
 
 	/**
@@ -285,17 +292,6 @@ public class UnderstandingService {
 	public record IssuedQuestion(String question, GenerationSource source) {
 	}
 
-	/**
-	 * 직원 처리 응답에 실을 AI 원판정. 마지막 attempt 의 값이다.
-	 *
-	 * <p>없을 수도 있다 — Override 로 건너뛴 Risk 는 답변 기록 없이 COMPLETE 가 된다.
-	 */
-	private UnderstandingStatus latestAiStatus(String sessionId, String riskId) {
-		List<UnderstandingResult> results =
-				resultRepository.findBySessionIdAndRiskIdOrderByAttemptAsc(sessionId, riskId);
-		return results.isEmpty() ? null : results.getLast().getAiStatus();
-	}
-
 	// ------------------------------------------------------------------
 
 	private UnderstandingResponse judge(String sessionId, SubmitAnswerRequest request, short attempt) {
@@ -314,7 +310,8 @@ public class UnderstandingService {
 			throw new ApiException(ErrorCode.INVALID_REQUEST, "답변 방식을 선택해 주세요.", riskId);
 		}
 
-		ProductRisk risk = questionTargets(session).stream()
+		List<ProductRisk> targets = questionTargets(session);
+		ProductRisk risk = targets.stream()
 				.filter(candidate -> candidate.getRiskId().equals(riskId))
 				.findFirst()
 				.orElseThrow(() -> new ApiException(ErrorCode.RISK_NOT_FOUND,
@@ -385,7 +382,8 @@ public class UnderstandingService {
 				workflowState.getFinalDisposition(),
 				nextAction,
 				recheckQuestion == null ? null : recheckQuestion.getQuestion(),
-				recheckQuestion == null ? null : recheckQuestion.getGenerationSource());
+				recheckQuestion == null ? null : recheckQuestion.getGenerationSource(),
+				progressOf(targets, riskId));
 	}
 
 	/**
@@ -456,6 +454,21 @@ public class UnderstandingService {
 				.filter(ProductRisk::isUnderstandingCheck)
 				.filter(risk -> !isSkippedByOverride(overrides.get(risk.getRiskId())))
 				.toList();
+	}
+
+	/**
+	 * 계약의 {@code progress} — {@code toQuestionsResponse}의 {@code orderIndex}와 같은
+	 * 1-based 순번 규칙을 쓴다. FE가 "Risk N/전체"를 직접 세지 않고 서버 값을 그대로 쓴다.
+	 */
+	private Progress progressOf(List<ProductRisk> targets, String riskId) {
+		int index = 1;
+		for (ProductRisk candidate : targets) {
+			if (candidate.getRiskId().equals(riskId)) {
+				return new Progress(index, targets.size());
+			}
+			index++;
+		}
+		return new Progress(0, targets.size());
 	}
 
 	private boolean isSkippedByOverride(GateOverride override) {
