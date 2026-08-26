@@ -225,6 +225,40 @@ DRAFT, 심사에 노출 안 됨 — 목록 조회 API가 없다)을 만들어 4�
 시간은 Step 6(dev set 확장)·Step 9 잔여·Step 12·Step 13처럼 아직 착수 전인 항목에 쓴다.
 재검토하려면 이 문서의 실측치(9·11쿼리, 695~920ms·805~1,080ms)부터 다시 읽을 것.
 
+## TRD §18 Step 13 — Cross-product sanity — 완료 (2026-08-26)
+
+**이전에 "PROD_B/C를 새 금융상품으로 완전히 기획·검수해야 한다"고 판단했던 건 과대
+해석이었다.** PRD §4.2~§4.3·§16 원문 대조로 정정: PROD_B/C는 **합성(가짜) 상품**이고,
+목적은 Coverage 파이프라인이 PROD_A의 No-Knock-in Step-down 구조에 하드코딩되지
+않았음을 증명하는 것뿐이다. **PDF는 P0 대상이 아니고**, "Product B/C UI 및 offline
+Coverage robustness"는 **P1**(필수 아님). Step 6(dev set 60시나리오)과는 별개 — 이
+작업은 `eval/demo_seed.json`을 건드리지 않았다.
+
+**한 것**: `seed/product_b_risk_schema.json` 신설(archetype=`KNOCK_IN_STEP_DOWN`,
+`isLiveDemo: false`) — 낙인 배리어(최초기준가 50%) 상시관찰 터치 여부로 손실 발생이
+갈리는 구조를 R01~R04에 반영해 PROD_A(만기 단일 시점 65%)와 실제로 다르게 설계했다.
+`static/documents/PROD_B/v1.0.pdf`는 PDFBox로 만든 placeholder(내용은 `SeedValidator`
+가 파싱하지 않으므로 자유, SHA-256만 실제 계산해 반영). `SeedLoader`가 시드 파일
+하나만 읽던 구조를 콤마 구분 다중 파일 순회로 바꿨다(`finready.seed.path` →
+`paths`). **세션 생성 이후 파이프라인(Coverage/Understanding/Report)은 코드 변경이
+전혀 필요 없었다** — `grep -rn "PROD_A" src/main/java` 0건으로 확인, 이미 `productId`
+로 완전히 파라미터화돼 있었다. `SeedLoaderTest` 신설 4건(PROD_A+PROD_B 둘 다 적재,
+PROD_A만 `isLiveDemo=true` 유지 = `GET /products/demo`가 안 갈라짐, Risk 9건씩 교체,
+파일 누락 시 실패 방식) 전부 통과.
+
+**실 배포로 실측 (2026-08-26)** — `eval/prod_b_sanity_seed.json`의 `CONS_B_001`을
+Render에 태움. **Gate 1/1 일치(`GATE_BLOCKED`, blocking=R02·R04) — 파이프라인이
+낙인형 구조에서도 죽지 않고 말이 되는 판정을 냈다.** Risk는 6/9(수기 추정 라벨과
+3건 어긋남 — 이 픽스처는 자동 정합성 검증 대상이 아니라 라벨 정확도가 목적이 아니다).
+**어긋난 3건이 오히려 유익한 신호였다**: R04·R06이 classifier 단계에서는 `EXPLAINED`
+로 나왔다가(R01·R03 설명과 내용이 겹쳐서) **verifier가 `downgraded=true`로 낮춰
+`INSUFFICIENT`로 확정됐다** — 규칙 3(EXPLAINED는 provenance+semantic 둘 다 통과해야
+성립)의 2단계 안전장치가 **한 번도 본 적 없는 archetype에서도 정확히 작동**했다는
+뜻이다. 레이턴시(S1+S2=20.5s, wall=22.4s)도 PROD_A 실측 범위(13.5~26.3s대) 안에
+들어 상품별 이상 징후 없음. `ClaudeSemanticVerifier`의 PROD_A 특화 낙인 예시 문장이
+PROD_B 판정을 오염시키는지 관찰했는데, **눈에 띄는 오염은 없었다**(R01 자체는 정확히
+`EXPLAINED`/`SUPPORTS`로 판정됨) — 프롬프트는 이번 스코프에서 건드리지 않았다.
+
 ## 테스트 전략
 
 **하이브리드.** 순수 단위/`@WebMvcTest`는 기본 `test` 태스크, 실 Postgres가 필요한 검증은
@@ -720,27 +754,32 @@ Guardrail 상세는 `docs/decisions/2026-08-19-guardrail-negation.md`.
 > CORS는 `common/WebConfig`가 이 설정을 실제로 읽는다. 기본값이 `http://localhost:3000`이라
 > 위 값을 안 넣으면 배포 프론트에서 막힌다.
 
-> **TRD §18 Step 0~5, 7·8·10·11 완료. Step 6·9는 부분 진행, Step 12·13 미착수**
+> **TRD §18 Step 0~5, 7·8·10·11·13 완료. Step 6·9는 부분 진행, Step 12 미착수**
 > (2026-08-26, PDF §18 표를 직접 읽어 전체 Step 목록 확인함 — 더 이상 "PDF 봐야 함"
 > 상태 아님).
 > - 0~5(인프라~Coverage 레이턴시), 7·8(F04~F08), 10(평가모듈), 11(데모 preset 이관) — 완료
+> - 13(Cross-product sanity) — **완료**(2026-08-26). PRD 원문 대조로 "새 상품 2개
+>   완전 기획"이 과대 해석이었음을 정정 — 실제로는 P1(필수 아님)에 가벼운 sanity
+>   check. PROD_B 합성 archetype 대조군 + 실 LLM 검증 완료, 상세는 위 "TRD §18 Step
+>   13" 절
 > - 6(dev set 확장) — PROD_A 6/60·답변 13/180, `CONS_A_006` 실 LLM 검증 완료.
->   **목표 절반은 Step 13 선행 필요**(아래 "데이터셋 현황" 참조), 지금은 보류
+>   Step 13 완료로 PROD_B 시드 인프라는 생겼지만(seed만 있고 시나리오는 `CONS_B_001`
+>   sanity 1건뿐), **60/180 목표 자체는 P1이라 여전히 보류** — 필요하면 PROD_B용
+>   시나리오를 더 쓰는 진입장벽은 낮아진 상태
 > - 9(append-only·evidence·§17 계약테스트) — 쿼리 카운트 회귀 테스트·중복 쿼리 제거는
 >   완료, §17 계약 테스트(springdoc 주석)·fetch join은 미착수. p95 300ms 예산도
 >   실 배포에서 미충족 확인했으나 **사용자 확정으로 보류**(위 §14.1 절 참조)
-> - 12(Prompt Freeze + Hold-out), 13(Product B/C) — 미착수
+> - 12(Prompt Freeze + Hold-out) — 미착수
 
 ### 데이터셋 현황 (별도 작업, 코드와 병행) — TRD §18 Step 6
 
-⚠️ **목표(60시나리오·180답변)의 절반이 PROD_B/PROD_C 없이는 구조적으로 못 채워진다**
-(2026-08-26 확인). `eval/demo_seed.json`의 `datasetPlan`이 이미 이렇게 적어뒀다 —
+목표는 60시나리오·180답변(`eval/demo_seed.json`의 `datasetPlan`:
 `consultations.byProduct = {PROD_A:30, PROD_B:15, PROD_C:15}`,
-`answers.perRisk=20`(R01~R03 × 3개 상품 = 180). **PROD_B/C는 Step 13이 아직
-미착수라 상품·Risk 시드·검수 근거·PDF 자체가 없다** — Step 6을 목표치대로 끝내려면
-Step 13(새 금융상품 2개 기획·검수)이 선행돼야 한다. 배포 동결(09-06) 전 완료는
-비현실적이라고 판단, **사용자 확정으로 지금은 저비용 항목(`CONS_A_006` 실행)만
-먼저 처리하고 PROD_A 확장·PROD_B/C 착수는 보류한다.**
+`answers.perRisk=20`). Step 13(2026-08-26 완료)으로 PROD_B 시드는 이제 존재하지만
+(`seed/product_b_risk_schema.json`, `isLiveDemo:false`), 이건 Step 6의 확장이 아니라
+Step 13의 sanity 검증(`eval/prod_b_sanity_seed.json`의 `CONS_B_001` 1건)일 뿐이다.
+**60/180 목표 자체는 PRD §16에서 P1(필수 아님)로 분류돼 있어 계속 보류한다** —
+사용자 확정. PROD_C는 아직 시드조차 없다.
 
 - 상담 시나리오 6 / 목표 60 (PROD_A만, 위 이유로 목표 미달 확정적) — **6건 모두 본문
   작성 완료** (2026-08-18). `DemoSeedGateConsistencyTest`가 라벨↔기대 Gate 정합성을
