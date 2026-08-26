@@ -72,7 +72,10 @@ finready:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   seed:
-    path: classpath:seed/product_a_risk_schema.json
+    # 콤마 구분 리스트다 — @Value 는 YAML 시퀀스를 못 받으므로 SeedLoader 에서 split(",") 한다.
+    # PROD_A 가 항상 첫 번째(=isLiveDemo 상품). PROD_B 는 TRD §18 Step 13 Cross-product
+    # sanity 전용 합성 대조군(isLiveDemo=false, GET /products/demo 에 노출 안 됨).
+    paths: classpath:seed/product_a_risk_schema.json,classpath:seed/product_b_risk_schema.json
     customer-path: classpath:seed/customer_profiles.json
     demo-preset-path: classpath:seed/demo_presets.json
     fail-fast: true                     # 시드/PDF 해시 검증 실패 시 기동 중단 (TRD §4.5)

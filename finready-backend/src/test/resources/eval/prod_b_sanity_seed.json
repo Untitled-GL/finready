@@ -1,0 +1,26 @@
+{
+  "$schema": "finready/demo-seed/v2",
+  "productId": "PROD_B",
+  "note": "TRD §18 Step 13 cross-product sanity 전용 1회성 실 LLM 검증 픽스처. eval/demo_seed.json(Step 6 소유, PROD_A 전용)과 완전히 분리돼 있고 DemoSeedGateConsistencyTest 같은 자동 정합성 검증 대상이 아니다. coverageGroundTruth/expectedGateResult는 수기 추정치이며 회귀 데이터셋이 아니다 — 목적은 라벨 정확도가 아니라 '파이프라인이 PROD_A의 No-Knock-in 구조에 하드코딩되지 않고 낙인형 archetype에서도 죽지 않고 말이 되는 판정을 내는가'다.",
+  "consultations": [
+    {
+      "id": "CONS_B_001",
+      "type": "CROSS_PRODUCT_SANITY",
+      "title": "PROD_B 낙인형 archetype 최초 실 LLM 검증 — 낙인/조기상환/신용/예금자보호만 설명",
+      "coverageGroundTruth": {
+        "R01": "EXPLAINED",
+        "R02": "NOT_FOUND",
+        "R03": "EXPLAINED",
+        "R04": "NOT_FOUND",
+        "R05": "NOT_FOUND",
+        "R06": "NOT_FOUND",
+        "R07": "EXPLAINED",
+        "R08": "EXPLAINED",
+        "R09": "NOT_FOUND"
+      },
+      "text": "안녕하세요, 오늘 안내드릴 상품은 FinReady 지수연계증권 ELS 제2호입니다. 코스피200, HSCEI, 유로스톡스50 이렇게 세 개 지수를 기초자산으로 하는 3년 만기 상품이고요, 조건이 충족되면 세전 연 6.9%의 수익을 드립니다. 이 상품은 원금이 보장되지 않습니다. 다만 이 상품은 낙인 배리어라는 게 있는데, 최초 기준가격의 50%를 만기 전에 한 번이라도 건드리지만 않으면 만기 때 지수가 얼마든 상관없이 원금과 약정 수익을 그대로 받으실 수 있습니다. 반대로 낙인 배리어를 만기 전에 한 번이라도 건드린 적이 있다면, 만기평가일에 가장 많이 떨어진 지수의 하락률만큼 손실이 반영됩니다. 조기상환은 6개월마다 평가일이 돌아오는데, 그때마다 세 지수가 모두 정해진 기준 이상이어야 상환이 되고요. 95퍼센트, 95퍼센트, 90퍼센트, 90퍼센트, 85퍼센트 이렇게 단계적으로 기준이 낮아집니다. 조건이 안 맞으면 상환이 안 되고 다음 차수로 넘어갑니다. 그리고 이 증권은 발행회사의 신용을 바탕으로 발행되는 무담보 채무증권이라서, 발행회사가 부도나 파산하면 지수 성과와 관계없이 원금과 수익을 못 받으실 수 있습니다. 예금자보호법으로도 보호되지 않는 상품입니다. 궁금한 점 있으시면 말씀해 주세요.",
+      "expectedGateResult": "GATE_BLOCKED",
+      "expectedGateReason": "GATE_REQUIRED Risk 중 R02(최대손실범위)·R04(만기상환 산정방식) 미언급 추정 — 수기 추정치, 자동 검증 대상 아님"
+    }
+  ]
+}

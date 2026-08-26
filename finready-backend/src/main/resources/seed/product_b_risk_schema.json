@@ -1,0 +1,250 @@
+{
+  "$schema": "finready/product-risk-schema/v2",
+  "note": "TRD §18 Step 13 — Coverage 파이프라인이 PROD_A의 No-Knock-in Step-down 구조에 하드코딩되지 않았음을 증명하기 위한 합성 archetype 대조군(Cross-product sanity). PRD §4.2~§4.3에 따라 PDF는 P0 대상이 아니며 source of truth는 이 검수된 스키마다. isLiveDemo=false라 GET /products/demo·심사 화면에는 노출되지 않는다.",
+  "product": {
+    "id": "PROD_B",
+    "name": "FinReady 지수연계증권(ELS) 제2호 [가상·비대표]",
+    "archetype": "KNOCK_IN_STEP_DOWN",
+    "productRiskVersion": "B-2026-08-26-01",
+    "documentId": "DOC_PROD_B_V1",
+    "documentFileName": "FinReady_ProductB_상품설명서_v1.0.pdf",
+    "documentUrl": "/documents/PROD_B/v1.0.pdf",
+    "documentPageCount": 2,
+    "documentSha256": "43334bb60190562c768bbca101d35347532f56b81e4c0ea075782ad3dafefd6b",
+    "isLiveDemo": false,
+    "syntheticNotice": "2026 금융 AI Challenge Coverage 파이프라인 Cross-product sanity(TRD §18 Step 13) 전용 대조군. 실제 판매 상품이 아니며 데모/평가 화면에 노출되지 않는다(isLiveDemo=false).",
+    "reference": {
+      "issuer": "(주)비전자산운용증권 [가상]",
+      "issuerCreditRating": "A",
+      "underlyings": [
+        "KOSPI200",
+        "HSCEI",
+        "EURO STOXX 50"
+      ],
+      "maturityYears": 3,
+      "barriers": [
+        "95%",
+        "95%",
+        "90%",
+        "90%",
+        "85%"
+      ],
+      "knockInBarrier": "50%(상시관찰형)",
+      "couponAnnualPct": 6.9,
+      "maxLossPct": -100,
+      "riskGrade": "2등급 (높은 위험)",
+      "depositProtected": false
+    }
+  },
+  "risks": [
+    {
+      "riskId": "R01",
+      "category": "PRINCIPAL_LOSS",
+      "title": "원금 손실 가능성",
+      "fact": "본 증권은 원금이 보장되지 않는다. 낙인(Knock-In) 배리어(최초기준가격의 50%)를 만기 이전 어느 시점에라도 하회하면(상시관찰, 매 영업일 종가 기준), 만기평가일에 3개 기초자산 중 최저 성과 자산이 최초기준가격의 100% 미만인 경우 그 하락률만큼 원금 손실이 발생한다. 낙인 배리어를 한 번도 터치하지 않았다면 만기평가일 가격 수준과 무관하게 원금 및 약정 수익이 지급된다.",
+      "coveragePolicy": "GATE_REQUIRED",
+      "understandingCheck": true,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "이 상품은 예금이 아니며 원금이 보장되지 않습니다. 낙인 배리어를 만기 이전에 한 번이라도 터치한 경우, 만기평가일 가격 수준에 따라 투자원금의 손실이 발생할 수 있습니다. 낙인 배리어를 터치하지 않았다면 만기평가일 가격과 무관하게 원금 및 수익이 지급됩니다.",
+      "fallbackQuestion": "이 상품에 1,000만원을 투자했는데 낙인 배리어를 만기 전에 한 번도 건드리지 않았다면, 만기평가일 가격이 얼마든 투자한 1,000만원은 돌려받을 수 있다고 생각하시나요?",
+      "fallbackRecheckQuestion": "그렇다면 낙인 배리어를 한 번이라도 터치했는지 여부가 원금 손실을 가르는 핵심 조건이라는 점, 이해하셨을까요?",
+      "fallbackPlainExplanation": "이 상품은 원금이 보장되지 않습니다. 낙인 배리어(최초기준가의 50%)를 만기 전에 한 번이라도 터치하면, 만기평가일에 가장 많이 떨어진 기초자산의 하락률만큼 손실이 납니다. 반대로 낙인을 한 번도 터치하지 않았다면 만기 가격과 무관하게 원금과 수익이 지급됩니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "낙인이 있으니 없는 상품보다 무조건 더 위험하다",
+          "만기 때 가격만 보면 손실 여부를 알 수 있다",
+          "낙인을 터치해도 만기에 가격이 회복되면 손실이 없다"
+        ]
+      }
+    },
+    {
+      "riskId": "R02",
+      "category": "MAXIMUM_LOSS",
+      "title": "최대 손실 범위",
+      "fact": "낙인 배리어를 한 번이라도 터치한 이후에는 만기평가일 가격이 최초기준가격의 100% 미만이기만 해도 그 하락률만큼 손실이 반영된다(PROD_A의 65% 기준보다 엄격). 최대 손실률은 -100%로 투자원금 전액을 손실할 수 있으며, 손실 규모에 하한선이나 완충 장치가 없다.",
+      "coveragePolicy": "GATE_REQUIRED",
+      "understandingCheck": true,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "낙인 배리어를 터치한 경우, 만기평가일에 최초기준가격 100% 미만이면 그 하락률만큼 손실이 반영됩니다. 손실 규모에 하한선은 없으며 최대 -100%까지 손실이 발생할 수 있습니다.",
+      "fallbackQuestion": "낙인 배리어를 터치한 뒤 손실이 난다면, 어느 정도까지 손실이 커질 수 있다고 이해하고 계신가요?",
+      "fallbackRecheckQuestion": "낙인 터치 후에는 만기가격이 최초기준가의 100%보다 조금만 낮아도 손실이 시작된다는 점, 확인되셨을까요?",
+      "fallbackPlainExplanation": "낙인 배리어를 터치한 뒤에는 만기평가일 가격이 최초기준가격의 100% 미만이기만 해도 그 하락률만큼 손실이 반영됩니다. 최대 손실률은 -100%로 원금 전액을 잃을 수 있습니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "낙인을 터치해도 어느 정도 완충 구간이 있다",
+          "손실은 최대 절반 정도일 것이다"
+        ]
+      }
+    },
+    {
+      "riskId": "R03",
+      "category": "EARLY_REDEMPTION",
+      "title": "조기상환 조건",
+      "fact": "자동조기상환은 6개월마다 돌아오는 평가일에 3개 기초자산 모두의 종가가 해당 차수 배리어(95/95/90/90/85%) 이상인 경우에만 발생하며, 특정 시점의 상환을 보장하지 않는다. 조건 미충족 시 상환 없이 다음 차수로 이월되어 투자금이 만기까지 묶일 수 있다.",
+      "coveragePolicy": "GATE_REQUIRED",
+      "understandingCheck": true,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "자동조기상환은 조건이 충족될 경우에만 발생하며, 특정 시점의 상환을 보장하지 않습니다. 조건이 충족되지 않으면 상환 없이 다음 차수로 이월되며, 투자금은 만기까지 계속 묶일 수 있습니다.",
+      "fallbackQuestion": "6개월 뒤 첫 번째 평가일이 되면 투자금을 돌려받을 수 있다고 생각하시나요?",
+      "fallbackRecheckQuestion": "6개월 뒤 조기상환 조건이 충족되지 않으면 투자금은 어떻게 되나요?",
+      "fallbackPlainExplanation": "조기상환은 6개월마다 돌아오는 평가일에 세 기초자산이 모두 그 차수의 기준(95%, 95%, 90%, 90%, 85%) 이상일 때만 이루어집니다. 조건이 맞지 않으면 상환 없이 다음 차수로 넘어가고, 투자금은 만기까지 묶일 수 있습니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "6개월마다 원금과 이자를 받을 수 있다",
+          "조기상환은 내가 원할 때 신청하는 것이다",
+          "6개월 뒤에는 무조건 돈이 나온다"
+        ]
+      }
+    },
+    {
+      "riskId": "R04",
+      "category": "MATURITY_REDEMPTION",
+      "title": "만기상환 조건",
+      "fact": "만기상환금액 산정은 낙인 배리어 터치 여부에 따라 두 가지 경로로 갈린다 — 낙인을 한 번도 터치하지 않았다면 만기평가일 가격 수준과 무관하게 원금 및 약정 수익이 지급되고, 낙인을 터치했다면 세 기초자산 중 성과가 가장 낮은 하나를 기준으로 산정한다(나머지 두 기초자산이 상승했더라도 손실을 상쇄하지 않는다).",
+      "coveragePolicy": "GATE_REQUIRED",
+      "understandingCheck": false,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "만기상환금액은 낙인 배리어 터치 여부에 따라 달라집니다. 터치하지 않았다면 만기평가일 가격과 무관하게 원금과 수익이 지급되며, 터치했다면 세 기초자산 중 성과가 가장 낮은 기초자산 하나를 기준으로 산정합니다.",
+      "fallbackQuestion": "낙인 배리어를 한 번도 터치하지 않았는데 만기 때 지수가 많이 떨어져 있다면, 상환금액은 어떻게 결정될까요?",
+      "fallbackRecheckQuestion": "낙인 터치 여부에 따라 만기상환금액을 계산하는 방식 자체가 달라진다는 점, 맞게 이해하신 걸까요?",
+      "fallbackPlainExplanation": "만기상환금액은 낙인 배리어를 터치했는지에 따라 두 가지로 갈립니다. 터치하지 않았다면 만기 가격과 무관하게 원금과 수익이 그대로 지급되고, 터치했다면 세 기초자산 중 가장 낮은 성과 하나를 기준으로 손실이 정해집니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "만기 때 가격만 보면 상환금액을 알 수 있다",
+          "낙인 여부와 무관하게 계산 방식은 같다"
+        ]
+      }
+    },
+    {
+      "riskId": "R05",
+      "category": "EARLY_TERMINATION",
+      "title": "투자자 요청 중도상환(환매) 위험",
+      "fact": "중도상환 시 지급 금액은 투자원금과 무관하게 발행회사가 산정한 공정가액을 기준으로 결정되며 투자원금보다 적을 수 있다. 중도상환 수수료 2.5%(6개월 미만 4.0%)가 손실 발생 시에도 부과된다.",
+      "coveragePolicy": "WARN_ONLY",
+      "understandingCheck": false,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "중도상환 시 지급되는 금액은 투자원금과 무관하게 결정되며, 투자원금보다 적을 수 있습니다. 중도상환 수수료 2.5%(6개월 미만 4.0%)는 손실이 난 경우에도 부과됩니다.",
+      "fallbackQuestion": "급하게 돈이 필요해서 만기 전에 이 상품을 해지하면 투자한 금액을 그대로 돌려받을 수 있을까요?",
+      "fallbackRecheckQuestion": "중간에 해지하면 원금보다 적은 금액을 받을 수도 있다는 점은 이해하셨을까요?",
+      "fallbackPlainExplanation": "만기 전에 중도상환을 신청하시면, 지급되는 금액은 투자원금과 무관하게 발행회사가 산정한 공정가액으로 정해지며 투자원금보다 적을 수 있습니다. 중도상환 수수료 2.5%(6개월 미만 4.0%)는 손실이 난 경우에도 부과됩니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "예금처럼 중도해지하면 이자만 못 받는다",
+          "언제든 원금은 찾을 수 있다"
+        ]
+      }
+    },
+    {
+      "riskId": "R06",
+      "category": "UNDERLYING_ASSET",
+      "title": "기초자산 및 가격변동 영향",
+      "fact": "상환 조건과 낙인 배리어 터치 여부는 모두 3개 기초자산(KOSPI200, HSCEI, EURO STOXX 50) 각각을 기준으로 판단하며, 하나라도 조건을 충족하지 못하면 해당 차수의 조기상환이 이루어지지 않고, 하나라도 낙인 배리어를 하회하면 낙인이 발생한다.",
+      "coveragePolicy": "WARN_ONLY",
+      "understandingCheck": false,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "상환 조건과 낙인 발생 여부는 기초자산 3개 각각을 기준으로 판단합니다. 3개 중 하나라도 조건을 충족하지 못하거나 낙인 배리어를 하회하면 그 결과가 전체 상품에 그대로 적용됩니다.",
+      "fallbackQuestion": "이 상품의 낙인 발생 여부는 세 개 지수 중 몇 개가 배리어를 하회해야 결정되나요?",
+      "fallbackRecheckQuestion": "세 지수 중 하나만 낙인 배리어를 하회해도 낙인이 발생한다는 점은 확인되셨을까요?",
+      "fallbackPlainExplanation": "상환 조건과 낙인 발생 여부는 모두 세 기초자산 각각을 기준으로 판단합니다. 하나라도 조건을 채우지 못하면 조기상환이 안 되고, 하나라도 낙인 배리어를 하회하면 낙인이 발생합니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "지수가 많을수록 더 안전하다",
+          "세 지수 모두가 배리어를 하회해야 낙인이 발생한다"
+        ]
+      }
+    },
+    {
+      "riskId": "R07",
+      "category": "ISSUER_CREDIT",
+      "title": "발행인 신용위험",
+      "fact": "본 증권은 발행회사의 신용을 바탕으로 발행되는 무담보 채무증권으로, 발행회사에 부도·파산 등 신용사건이 발생하면 기초자산의 성과나 낙인 배리어 터치 여부와 관계없이 원금 및 수익의 전부 또는 일부를 지급받지 못할 수 있다.",
+      "coveragePolicy": "WARN_ONLY",
+      "understandingCheck": false,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "발행회사에 부도, 파산, 채무불이행 등의 신용사건이 발생하는 경우 기초자산의 성과와 관계없이 원금 및 수익의 전부 또는 일부를 지급받지 못할 수 있습니다.",
+      "fallbackQuestion": "만약 이 증권을 발행한 증권회사가 파산한다면 투자금은 어떻게 될까요?",
+      "fallbackRecheckQuestion": "발행 증권사에 문제가 생기면 낙인을 터치하지 않았더라도 돈을 못 받을 수 있다는 점, 이해되셨을까요?",
+      "fallbackPlainExplanation": "이 증권은 발행회사의 신용을 바탕으로 발행되는 무담보 채무증권입니다. 발행회사에 부도나 파산 같은 신용사건이 생기면, 낙인 배리어 터치 여부와 관계없이 원금과 수익의 전부 또는 일부를 받지 못할 수 있습니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "증권사가 망해도 내 돈은 따로 보관된다",
+          "낙인을 안 터치했으면 무조건 안전하다"
+        ]
+      }
+    },
+    {
+      "riskId": "R08",
+      "category": "DEPOSIT_PROTECTION",
+      "title": "예금자보호 여부",
+      "fact": "본 증권은 예금자보호법에 따라 보호되지 않으며 예금보험공사의 보호 대상이 아니다.",
+      "coveragePolicy": "GATE_REQUIRED",
+      "understandingCheck": false,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "본 증권은 예금자보호법에 따라 보호되지 않습니다. 은행 예금과 달리 예금보험공사의 보호 대상이 아니며, 발행회사가 파산하는 경우 투자금을 돌려받지 못할 수 있습니다.",
+      "fallbackQuestion": "이 상품도 은행 예금처럼 5천만원까지 예금자보호가 되는 상품일까요?",
+      "fallbackRecheckQuestion": "이 상품이 예금자보호 대상이 아니라는 점은 확인되셨을까요?",
+      "fallbackPlainExplanation": "이 상품은 예금자보호법에 따라 보호되지 않습니다. 은행 예금과 달리 예금보험공사의 보호 대상이 아니며, 발행회사가 파산하면 투자금을 돌려받지 못할 수 있습니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "증권사 상품도 5천만원까지 보호된다",
+          "은행에서 가입하면 예금자보호가 된다"
+        ]
+      }
+    },
+    {
+      "riskId": "R09",
+      "category": "FEE_COST",
+      "title": "수수료 및 비용",
+      "fact": "총 보수 연 0.75%가 발행가격에 반영되어 별도 청구되지 않으나 실질 수익에 영향을 미치며, 중도상환 시 공정가액의 2.5%(6개월 미만 4.0%)가 손실 발생 시에도 차감된다.",
+      "coveragePolicy": "WARN_ONLY",
+      "understandingCheck": false,
+      "sourceDocumentId": "DOC_PROD_B_V1",
+      "sourcePage": 2,
+      "sourceText": "총 보수는 발행가격에 이미 반영되어 있으므로 투자자가 별도로 납입하지 않으나, 그만큼 상환 조건에 반영되어 실질 수익에 영향을 미칩니다.",
+      "fallbackQuestion": "이 상품에 가입할 때 따로 내야 하는 수수료가 있다고 이해하고 계신가요?",
+      "fallbackRecheckQuestion": "수수료가 눈에 보이지 않아도 수익률에 이미 반영되어 있다는 점은 이해되셨을까요?",
+      "fallbackPlainExplanation": "총 보수 연 0.75%는 발행가격에 이미 반영되어 있어 따로 내지는 않으시지만, 그만큼 상환 조건에 반영되어 실질 수익에 영향을 줍니다. 중도상환 시에는 공정가액의 2.5%(6개월 미만 4.0%)가 손실이 난 경우에도 차감됩니다.",
+      "verifiedAt": "2026-08-26",
+      "verifiedBy": "TEAM",
+      "reference": {
+        "supportingPages": [2],
+        "commonMisconceptions": [
+          "수수료가 전혀 없다",
+          "중도해지해도 수수료는 손실이 날 때는 면제된다"
+        ]
+      }
+    }
+  ]
+}

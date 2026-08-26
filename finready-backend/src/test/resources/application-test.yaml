@@ -24,7 +24,7 @@ finready:
   cors:
     allowed-origins: http://localhost:3000
   seed:
-    path: classpath:seed/product_a_risk_schema.json
+    paths: classpath:seed/product_a_risk_schema.json,classpath:seed/product_b_risk_schema.json
     customer-path: classpath:seed/customer_profiles.json
     demo-preset-path: classpath:seed/demo_presets.json
     fail-fast: true

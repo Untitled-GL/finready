@@ -17,6 +17,7 @@ import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -40,17 +41,22 @@ public class SeedLoader implements CommandLineRunner {
 	private final ResourceLoader resourceLoader;
 	private final ObjectMapper objectMapper;
 
-	private final String seedPath;
+	private final List<String> productSeedPaths;
 	private final String customerSeedPath;
 	private final boolean failFast;
 
+	/**
+	 * {@code finready.seed.paths} 는 콤마 구분 단일 문자열이다. {@code @Value} 가 YAML
+	 * 시퀀스를 못 받으므로(인덱스 키로 쪼개져 단일 placeholder 로 해석 불가) 리스트
+	 * 대신 이 형태를 쓴다. 첫 번째 경로가 관례상 {@code isLiveDemo} 상품(PROD_A)이다.
+	 */
 	public SeedLoader(ProductRepository productRepository,
 	                  ProductRiskRepository productRiskRepository,
 	                  CustomerProfileRepository customerProfileRepository,
 	                  SeedValidator seedValidator,
 	                  ResourceLoader resourceLoader,
 	                  ObjectMapper objectMapper,
-	                  @Value("${finready.seed.path}") String seedPath,
+	                  @Value("${finready.seed.paths}") String productSeedPathsCsv,
 	                  @Value("${finready.seed.customer-path}") String customerSeedPath,
 	                  @Value("${finready.seed.fail-fast}") boolean failFast) {
 		this.productRepository = productRepository;
@@ -59,7 +65,10 @@ public class SeedLoader implements CommandLineRunner {
 		this.seedValidator = seedValidator;
 		this.resourceLoader = resourceLoader;
 		this.objectMapper = objectMapper;
-		this.seedPath = seedPath;
+		this.productSeedPaths = Arrays.stream(productSeedPathsCsv.split(","))
+				.map(String::trim)
+				.filter(path -> !path.isEmpty())
+				.toList();
 		this.customerSeedPath = customerSeedPath;
 		this.failFast = failFast;
 	}
@@ -70,17 +79,31 @@ public class SeedLoader implements CommandLineRunner {
 	 * <p>@Transactional 을 여기에 둔 이유: 같은 클래스의 메서드를 직접 호출하면 프록시를
 	 * 거치지 않아 어노테이션이 무효가 된다. 파일 읽기·검증도 트랜잭션 안에 들어오지만
 	 * 수백 KB 해시 계산이라 밀리초 단위이고, LLM 호출이 없어 규칙 6과 충돌하지 않는다.
+	 *
+	 * <p>상품 시드는 {@link #productSeedPaths} 순서대로 전부 적재한다(TRD §18 Step 13 —
+	 * PROD_B 합성 대조군 추가). {@code failFast=false} 일 때 한 파일이 실패하면 <b>그
+	 * 이후 파일은 시도하지 않는다</b> — 기존 단일 파일 때와 같은 실패 단위(파일 하나
+	 * 실패 시 적재 전체를 건너뜀)를 그대로 유지한 것이며, "PROD_A 는 성공, PROD_B 만
+	 * 실패"인 경우에도 PROD_A 가 건너뛰어질 수 있다는 뜻이다.
 	 */
 	@Override
 	@Transactional
 	public void run(String... args) {
 		try {
-			ProductSeedDocument seed = read(seedPath, ProductSeedDocument.class);
 			CustomerProfileSeedDocument customerSeed = read(customerSeedPath, CustomerProfileSeedDocument.class);
+			int customerCount = upsertCustomerProfiles(customerSeed);
 
-			seedValidator.validate(seed);
+			for (String seedPath : productSeedPaths) {
+				ProductSeedDocument seed = read(seedPath, ProductSeedDocument.class);
+				seedValidator.validate(seed);
 
-			apply(seed, customerSeed);
+				Product product = upsertProduct(seed.product());
+				int riskCount = replaceRisks(product.getId(), seed.risks());
+
+				log.info("시드 적재 완료 — product={} ({}), risk {}건",
+						product.getId(), product.getProductRiskVersion(), riskCount);
+			}
+			log.info("customerProfile {}건 적재", customerCount);
 		}
 		catch (SeedValidationException ex) {
 			if (failFast) {
@@ -88,15 +111,6 @@ public class SeedLoader implements CommandLineRunner {
 			}
 			log.error("시드 검증에 실패했지만 finready.seed.fail-fast=false 라 적재를 건너뛴다.\n{}", ex.getMessage());
 		}
-	}
-
-	private void apply(ProductSeedDocument seed, CustomerProfileSeedDocument customerSeed) {
-		Product product = upsertProduct(seed.product());
-		int riskCount = replaceRisks(product.getId(), seed.risks());
-		int customerCount = upsertCustomerProfiles(customerSeed);
-
-		log.info("시드 적재 완료 — product={} ({}), risk {}건, customerProfile {}건",
-				product.getId(), product.getProductRiskVersion(), riskCount, customerCount);
 	}
 
 	/**
