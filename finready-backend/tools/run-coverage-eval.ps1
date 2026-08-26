@@ -236,7 +236,7 @@ function Get-Median([int[]] $values) {
 Write-Host ''
 Write-Host ('-' * 78) -ForegroundColor DarkGray
 Write-Host '레이턴시 집계 (TRD §14: S1+S2 합계 12초 / 계약 한도 wall 30초)' -ForegroundColor Cyan
-Write-Host ('{0,-14} {1,>3} {2,>26} {3,>26} {4,>6} {5,>6}' -f '시나리오', 'n', 'S1 min/med/max', '합계 min/med/max', '>12s', '>30s') -ForegroundColor DarkGray
+Write-Host ('{0,-14} {1,3} {2,26} {3,26} {4,6} {5,6}' -f '시나리오', 'n', 'S1 min/med/max', '합계 min/med/max', '>12s', '>30s') -ForegroundColor DarkGray
 
 foreach ($group in ($transcript | Group-Object scenario)) {
     $s1s = @($group.Group | ForEach-Object { $_.classifierMs })
@@ -249,7 +249,7 @@ foreach ($group in ($transcript | Group-Object scenario)) {
     if ($over12 -gt 0) { $rowColor = 'Yellow' }
     if ($over30 -gt 0) { $rowColor = 'Red' }
 
-    Write-Host ('{0,-14} {1,3} {2,>26} {3,>26} {4,6} {5,6}' -f
+    Write-Host ('{0,-14} {1,3} {2,26} {3,26} {4,6} {5,6}' -f
         $group.Name,
         $group.Count,
         ('{0}/{1}/{2}' -f ($s1s | Measure-Object -Minimum).Minimum, (Get-Median $s1s), ($s1s | Measure-Object -Maximum).Maximum),
