@@ -34,7 +34,16 @@ dependencies {
 
 	// LLM 클라이언트 — Claude Sonnet 4.6 (TRD D-02 결정, 2026-08-18).
 	// 공식 SDK를 쓴다. 직접 HTTP를 짜면 재시도·스트리밍·오류 타입을 다시 만들어야 한다.
-	implementation("com.anthropic:anthropic-java:2.34.0")
+	//
+	// swagger-annotations(비-jakarta, 2.2.31)를 뺀다 — SDK가 구조화 출력 스키마 생성용으로
+	// 전이 의존한다(jsonschema-module-swagger-2 경유). Sonnet 4.6은 구조화 출력을 지원하지
+	// 않아(주석 참조, ai/AiGateway) 이 경로를 안 쓰는데, 클래스명이 springdoc이 쓰는
+	// swagger-annotations-jakarta(2.2.52)와 같은 패키지라 클래스패스에 둘 다 있으면 구버전이
+	// 먼저 로드될 때 NoSuchMethodError가 난다(TRD §17 계약 테스트 도입 중 실제로 걸림,
+	// 2026-08-26 — org.springdoc...NoSuchMethodError: Schema.$dynamicRef()).
+	implementation("com.anthropic:anthropic-java:2.34.0") {
+		exclude(group = "io.swagger.core.v3", module = "swagger-annotations")
+	}
 
 	// 시드 sourceText ↔ PDF 대조. 런타임이 아니라 테스트에서만 쓴다 (TRD §5.4)
 	testImplementation("org.apache.pdfbox:pdfbox:3.0.3")

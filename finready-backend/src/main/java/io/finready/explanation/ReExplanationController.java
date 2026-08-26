@@ -1,5 +1,9 @@
 package io.finready.explanation;
 
+import io.finready.common.ErrorResponse;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,6 +29,8 @@ public class ReExplanationController {
 	 * 서버가 한 번에 보장하기 위해서다(계약).
 	 */
 	@PostMapping("/{sessionId}/reexplain")
+	@ApiResponse(responseCode = "200")
+	@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
 	public ReExplanationResponse reExplain(@PathVariable String sessionId,
 	                                       @RequestBody ReExplainRequest request) {
 		return reExplanationService.reExplain(sessionId, request);

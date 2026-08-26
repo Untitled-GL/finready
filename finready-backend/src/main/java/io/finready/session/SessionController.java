@@ -1,5 +1,9 @@
 package io.finready.session;
 
+import io.finready.common.ErrorResponse;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,11 +26,15 @@ public class SessionController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+	@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
 	public SessionResponse createSession(@RequestBody CreateSessionRequest request) {
 		return sessionService.createSession(request);
 	}
 
 	@GetMapping("/{sessionId}")
+	@ApiResponse(responseCode = "200")
+	@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
 	public SessionSnapshotResponse getSession(@PathVariable String sessionId) {
 		return sessionService.getSnapshot(sessionId);
 	}
@@ -34,6 +42,8 @@ public class SessionController {
 	/** 동일 텍스트 재전송이면 기존 revision 을 돌려주지만, 계약이 201 만 정의하므로 상태는 그대로다 */
 	@PostMapping("/{sessionId}/revisions")
 	@ResponseStatus(HttpStatus.CREATED)
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+	@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
 	public RevisionResponse createRevision(@PathVariable String sessionId,
 	                                       @RequestBody CreateRevisionRequest request) {
 		return sessionService.createRevision(sessionId, request);
@@ -46,6 +56,8 @@ public class SessionController {
 	 * 201 을 정의하지 않기 때문이며, 새 자원을 만드는 요청도 아니다.
 	 */
 	@PostMapping("/{sessionId}/close")
+	@ApiResponse(responseCode = "200")
+	@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
 	public SessionResponse closeSession(@PathVariable String sessionId,
 	                                    @RequestBody CloseSessionRequest request) {
 		return sessionService.closeSession(sessionId, request);
