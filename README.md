@@ -648,6 +648,17 @@ Java 소스 118개. 인프라·데이터·API가 F07까지 올라와 있고 실�
   프론트에 실측 33초를 전달해야 한다 (fetch 타임아웃·대기 화면 기준값)
 - ⚠️ **30초 계약 한도 초과가 이미 발생했다 (미추적).** `CONS_A_002` wall 33.2초.
   그 상담문은 1,400자이고 계약 상한은 8,000자다
+- ⚠️ **`GET /sessions/{id}`·`GET /report`가 TRD §14 "비-AI API p95 300ms" 예산을
+  실 배포에서 2.3~3.6배 초과한다** (2026-08-26, TRD §18 Step 9). 앱(Singapore)↔DB(Seoul)
+  왕복이 쿼리당 51~80ms인데 두 엔드포인트가 Coverage·Understanding·Override·Revision·
+  Audit 다섯 컬렉션을 순차로 읽어서 쿼리 수만큼 그대로 쌓인다. 확인된 중복 쿼리 2건
+  (`SessionService.getSnapshot`의 revision 재조회, `ReportService.getReport`의
+  `gate_override` 재조회)은 제거해 11→9쿼리·14→11쿼리로 줄이고
+  `ReportQueryCountIntegrationTest`(Hibernate `Statistics`)로 회귀를 고정했지만,
+  실 배포(`finready-backend.onrender.com`)에서 재보니 각각 약 695~920ms·805~1,080ms —
+  **예산 300ms는 여전히 미충족.** 진짜 해소는 fetch join/배치 리팩터나 컬렉션 병렬화
+  (커넥션 풀 5개뿐이라 단일 사용자 P0 전제에서만 안전) 중 하나가 필요하며 착수 전이다.
+  상세는 `finready-backend/CLAUDE.md`의 §14.1 절
 - **캐시 TTL을 5분 → 1시간으로 올릴지** — 심사처럼 세션이 띄엄띄엄 오면 5분 TTL은
   매번 쓰기만 물고 읽기 혜택이 없다. 배포 전 결정
 - **`revisionNo` 채번 경쟁 상태가 남아 있다** (의도적 보류). 실패가 409

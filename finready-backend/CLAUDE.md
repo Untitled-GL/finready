@@ -160,22 +160,70 @@ package-private 생성자(`ClaudeSemanticVerifier(AiGateway, Effort)`)만 추가
 (2026-08-26) **Phase 7(문서·계약) 완료로 Step 5 종료.** `docs/openapi.yml`
 1.4.3→1.4.4(스키마 변경 없음, classifier "1회 batch call" 서술 정정 +
 `analysis.classifierLatencyMs`/`promptVersion` 설명 갱신). "실측 33초" 프론트 전달값을
-26.3초로 갱신(코드 변경 불필요 — fetch 타임아웃 60초가 이미 여유 안). **미해결로 남긴 것
-하나** — `finready-frontend/contracts/openapi.yml` 사본이 2026-08-22에 삭제된 채라
-`package.json`의 `gen:api`와 `contract.test.ts`가 깨져 있다. 되돌릴지 사본 없는 방식으로
-갈지는 **팀 결정 필요**, 손대지 않았다.
+26.3초로 갱신(코드 변경 불필요 — fetch 타임아웃 60초가 이미 여유 안).
+
+**프론트 계약 사본 — 해소** (2026-08-26, 팀 결정). `finready-frontend/contracts/openapi.yml`
+사본을 되살리지 않고, 프론트가 루트 `docs/openapi.yml`을 직접 참조하는 방식으로 정리하기로
+했다. 사본이 갈라질 걱정 자체가 없어진다. `package.json`의 `gen:api`·`contract.test.ts`
+경로 수정은 프론트 쪽 작업이라 여기서는 손대지 않았다.
 
 상세는 `docs/decisions/2026-08-20-coverage-latency-fanout.md`
 
 **12초와 별개로 Coverage 엔드포인트에는 30초 계약 한도가 있다.** 둘을 섞지 말 것.
 
-§14.1(리전 교차)이 요구하는 세 가지 중 **1번과 3번이 아직 미충족**이다.
-① `GET /sessions/{id}`·`GET /report`를 fetch join/배치로 한 번에 읽기 — `src/main/java`에
-`join fetch`·`@EntityGraph`가 하나도 없다. TRD가 "Report는 Coverage·Understanding·
-Override·Revision·Audit 다섯 컬렉션을 동시에 그린다"며 N+1 최대 위험처로 직접 지목했다.
+§14.1(리전 교차)이 요구하는 세 가지 중 **1번은 부분적으로, 3번은 충족했다** (2026-08-26,
+TRD §18 Step 9).
+① `GET /sessions/{id}`·`GET /report`를 fetch join/배치로 한 번에 읽기 — **여전히
+`join fetch`·`@EntityGraph`는 없다.** 대신 확인된 **중복 쿼리 2건을 제거**했다:
+`SessionService.getSnapshot`이 최신 revision을 조회한 뒤 그 값을
+`CoverageQueryService.latestFor(session, currentRevision)`(신규 오버로드)에 넘겨 같은
+쿼리를 두 번 안 날리게 했고, `ReportService.getReport`는 `gate_override`를 두 번
+읽던 것(`latestFor` 내부 1회 + `overrideRecordsOf` 1회)을 `CoverageQueryService
+.reportSectionsOf(session)` 하나로 합쳐 한 번만 읽는다. 실측: `GET /sessions/{id}`
+11→**9쿼리**, `GET /report` 14→**11쿼리**(둘 다 TRD 상한 15 이내). Coverage·Understanding·
+Override·Revision·Audit 다섯 컬렉션을 각각 한 번씩 순차로 읽는 구조 자체는 그대로다 —
+진짜 fetch join으로 왕복 자체를 줄이는 건 더 큰 리팩터라 이번엔 안 건드렸다.
 ② `default_batch_fetch_size: 100` — **충족**(`application.yaml`).
-③ 통합 테스트에 쿼리 카운트 assertion — 없다. TRD가 "로컬에서는 N+1이 안 보이고 배포 후
-심사에서만 느려지는 게 리전 교차의 전형적 실패 방식"이라 경고한 항목이다.
+③ 통합 테스트에 쿼리 카운트 assertion — **충족**.
+`ReportQueryCountIntegrationTest`(Hibernate `Statistics`, Testcontainers)가 두 엔드포인트의
+쿼리 수를 실측치(9·11)로 고정한다. TRD가 "로컬에서는 N+1이 안 보이고 배포 후 심사에서만
+느려지는 게 리전 교차의 전형적 실패 방식"이라 경고한 바로 그 회귀를 이 테스트가 잡는다.
+`risk_workflow_state`가 비어 있으면 `UnderstandingQueryService.statesOf`가 조기 반환해
+쿼리 4개가 숨는 함정이 있어, 픽스처에 Coverage·Override·Understanding 세 섹션 모두
+최소 1행씩 채워 실제 운영 경로를 그대로 태웠다.
+
+**실 배포(Render Singapore ↔ Supabase Seoul)에서 실측** (2026-08-26). 로컬/Testcontainers는
+같은 리전이라 이 비용이 안 보인다 — 실제 배포 URL로 직접 재야 하는 이유다.
+`https://finready-backend.onrender.com`에 임시 세션(`9c9b50a7-e4d1-42c8-96d6-137f349a4ffe`,
+DRAFT, 심사에 노출 안 됨 — 목록 조회 API가 없다)을 만들어 4개 엔드포인트를 재서
+쿼리당 비용을 역산했다.
+
+| 엔드포인트 | 쿼리 수 | ttfb (warm, n=4~5 평균) |
+|---|---|---|
+| `/actuator/health` (DB 사실상 미사용) | ~0 | 213ms |
+| `GET /products/demo` | 3 | 447ms |
+| `GET /sessions/{id}` (DRAFT, coverage 전이라 4개로 단축) | 4 | 521ms |
+| `GET /report` (DRAFT, 위와 동일 이유로 8개) | 8 | 732ms |
+
+네 점을 선형회귀하면 **쿼리당 51~80ms** — TRD §14.1의 문서화된 70~90ms와 같은 자릿수로
+수렴한다(측정마다 오차 있음, 위 표는 워밍업 후 값). 이 기울기로 **실제 데이터가 찬**
+9·11쿼리를 투영하면:
+
+- `GET /sessions/{id}` (9쿼리): **약 695~920ms**
+- `GET /report` (11쿼리): **약 805~1,080ms**
+
+**둘 다 TRD §14 "비-AI API p95 300ms" 예산을 2.3~3.6배 초과한다.** Coverage처럼 "12초
+넘지만 30초 한도는 지킨다"는 여유가 이쪽엔 없다 — 심사 중 리포트·세션 화면을 열 때마다
+매번 이 비용이 걷힌다. 이번 작업(쿼리 중복 제거)은 **회귀를 하나 막은 것이지 예산을
+충족시킨 게 아니다.** 진짜 해소는 위 ①에서 보류한 fetch join/배치 리팩터, 또는 다섯
+컬렉션 조회를 병렬화하는 것(커넥션 풀이 5개뿐이라 단일 사용자 P0 데모 전제에서만
+안전) 중 하나가 필요하다.
+
+**결정 (2026-08-26, 사용자 확정): 지금은 보류한다.** 화면이 안 뜨는 문제가 아니라
+느린 문제이고, fetch join은 손이 많이 가고 병렬화는 커넥션 풀 5개를 다 쓰는 리스크가
+있다 — Coverage 12초 예산과 같은 논리로 우선순위를 낮춘다. 배포 동결(09-06) 전 남은
+시간은 Step 6(dev set 확장)·Step 9 잔여·Step 12·Step 13처럼 아직 착수 전인 항목에 쓴다.
+재검토하려면 이 문서의 실측치(9·11쿼리, 695~920ms·805~1,080ms)부터 다시 읽을 것.
 
 ## 테스트 전략
 
@@ -672,22 +720,43 @@ Guardrail 상세는 `docs/decisions/2026-08-19-guardrail-negation.md`.
 > CORS는 `common/WebConfig`가 이 설정을 실제로 읽는다. 기본값이 `http://localhost:3000`이라
 > 위 값을 안 넣으면 배포 프론트에서 막힌다.
 
-> **TRD §18 Step 1 DoD 충족.** `연결 + Flyway + 시드 로더 + GET /products/demo` +
-> §3.4 검증 5항목이 모두 끝났다.
-> **다음 순서 5항목(Step 2) 모두 완료** (2026-08-19) — F03~F08 전 파이프라인 + 오프라인 평가
-> 모듈까지 실 LLM 검증됨. TRD §18에서 Step 2 다음 단계(Step 3 이하)를 확인하고 이어갈 것 —
-> 코드로는 알 수 없고 PDF 원본을 봐야 한다. 그 전까지는 "알려진 문제"·"미결정"·
-> "데이터셋 현황"에 쌓인 잔여 항목(Coverage 레이턴시 초과, 시나리오 6/60·답변 13/180,
-> `CONS_A_006` 미실행, 캐시 TTL 미결정)이 우선순위 후보다
+> **TRD §18 Step 0~5, 7·8·10·11 완료. Step 6·9는 부분 진행, Step 12·13 미착수**
+> (2026-08-26, PDF §18 표를 직접 읽어 전체 Step 목록 확인함 — 더 이상 "PDF 봐야 함"
+> 상태 아님).
+> - 0~5(인프라~Coverage 레이턴시), 7·8(F04~F08), 10(평가모듈), 11(데모 preset 이관) — 완료
+> - 6(dev set 확장) — PROD_A 6/60·답변 13/180, `CONS_A_006` 실 LLM 검증 완료.
+>   **목표 절반은 Step 13 선행 필요**(아래 "데이터셋 현황" 참조), 지금은 보류
+> - 9(append-only·evidence·§17 계약테스트) — 쿼리 카운트 회귀 테스트·중복 쿼리 제거는
+>   완료, §17 계약 테스트(springdoc 주석)·fetch join은 미착수. p95 300ms 예산도
+>   실 배포에서 미충족 확인했으나 **사용자 확정으로 보류**(위 §14.1 절 참조)
+> - 12(Prompt Freeze + Hold-out), 13(Product B/C) — 미착수
 
-### 데이터셋 현황 (별도 작업, 코드와 병행)
-- 상담 시나리오 6 / 목표 60 — **6건 모두 본문 작성 완료** (2026-08-18).
-  `DemoSeedGateConsistencyTest`가 라벨↔기대 Gate 정합성을 자동 검증하므로
-  시나리오를 추가할 때 라벨만 맞으면 어긋남이 바로 걸린다
-- **실 LLM 실행 5/6** — `001`·`002`·`003`·`004`·`005` 완료. `006`(장황한 상담) 미실행.
-  `tools/run-coverage-eval.ps1 -Scenarios CONS_A_006` 으로 돌린다(시나리오당 약 $0.03).
+### 데이터셋 현황 (별도 작업, 코드와 병행) — TRD §18 Step 6
+
+⚠️ **목표(60시나리오·180답변)의 절반이 PROD_B/PROD_C 없이는 구조적으로 못 채워진다**
+(2026-08-26 확인). `eval/demo_seed.json`의 `datasetPlan`이 이미 이렇게 적어뒀다 —
+`consultations.byProduct = {PROD_A:30, PROD_B:15, PROD_C:15}`,
+`answers.perRisk=20`(R01~R03 × 3개 상품 = 180). **PROD_B/C는 Step 13이 아직
+미착수라 상품·Risk 시드·검수 근거·PDF 자체가 없다** — Step 6을 목표치대로 끝내려면
+Step 13(새 금융상품 2개 기획·검수)이 선행돼야 한다. 배포 동결(09-06) 전 완료는
+비현실적이라고 판단, **사용자 확정으로 지금은 저비용 항목(`CONS_A_006` 실행)만
+먼저 처리하고 PROD_A 확장·PROD_B/C 착수는 보류한다.**
+
+- 상담 시나리오 6 / 목표 60 (PROD_A만, 위 이유로 목표 미달 확정적) — **6건 모두 본문
+  작성 완료** (2026-08-18). `DemoSeedGateConsistencyTest`가 라벨↔기대 Gate 정합성을
+  자동 검증하므로 시나리오를 추가할 때 라벨만 맞으면 어긋남이 바로 걸린다
+- **실 LLM 실행 6/6 완료** (2026-08-26). `006`(장황한 상담)을 배포된 Render 백엔드에
+  대고 `tools/run-coverage-eval.ps1 -Scenarios CONS_A_006 -BaseUrl
+  https://finready-backend.onrender.com` 로 2회 실행 — **Risk 9/9·Gate 1/1, 라벨
+  수정 불필요.** 합계 16.0~16.5s(12초 예산 여전히 미충족, 기존 관측과 같음), wall
+  18.3~18.5s(30초 한도 안전). 로컬 DB·LLM 자격증명 없이도 `-BaseUrl`로 배포 서버를
+  직접 겨냥하면 이 스크립트를 돌릴 수 있다 — 자격증명은 Render 쪽에 이미 있다.
   이 스크립트는 시드에서 본문을 그대로 읽어 쓴다 — Swagger로 손으로 붙여넣으면
   **본문이 한 글자만 달라져도 provenance가 전부 실패해 측정이 오염된다**
+  → **스크립트 결함 발견·수정**: 레이턴시 집계 표 출력부(`{1,>3}` 류 포맷 문자열)가
+  .NET 컴포지트 포맷에 없는 `>` 정렬 기호를 써서 **이 구간이 한 번도 성공한 적
+  없이 매번 크래시했었다** — Risk/Gate 대조까지는 항상 정상 출력되고 그 아래
+  요약 표만 죽어서 지금까지 안 걸렸다. `{1,3}` 형태로 고쳤다(TODO 아님, 이미 수정 완료)
 - 고객 답변 **13** / 목표 180. `ANS_R03_004` 추가 (2026-08-19) —
   실 LLM 실행에서 라벨과 2회 연속 어긋난 문구를 **버리지 않고 UNCERTAIN 사례로 옮겼다.**
   판정기가 정확한 근거로 두 번 짚은 경계 사례는 데이터셋에 없던 자리를 메운다
