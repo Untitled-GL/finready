@@ -110,10 +110,17 @@ public class AiGateway {
 				// 레이턴시와 토큰이 그만큼 더 든다 (TRD §14 예산 12초)
 				.outputConfig(OutputConfig.builder().effort(request.effort()).build())
 				// 시스템 프롬프트를 캐시 prefix 로 쓴다. 전 세션 공통이라 여기가 캐시가 가장 잘 듣는
-				// 지점이며, 캐시는 prefix 일치라 이 앞에 변하는 값을 두면 전부 무효가 된다
+				// 지점이며, 캐시는 prefix 일치라 이 앞에 변하는 값을 두면 전부 무효가 된다.
+				// TTL 은 1시간(기본 5분 대비 쓰기 1.25배→2배, 배포 전 결정 항목이었다). 심사가
+				// 09-07~09-11 닷새에 걸쳐 띄엄띄엄 들어올 것이라 5분으로는 세션 간 캐시가 거의
+				// 안 겹친다 — 매번 쓰기만 물고 읽기 혜택이 없다. quota는 빠듯하지 않으므로
+				// (docs/decisions/2026-08-18-coverage-prompt-tuning.md) 쓰기 비용 증가보다
+				// 적중률을 우선한다
 				.systemOfTextBlockParams(List.of(TextBlockParam.builder()
 						.text(request.systemPrompt())
-						.cacheControl(CacheControlEphemeral.builder().build())
+						.cacheControl(CacheControlEphemeral.builder()
+								.ttl(CacheControlEphemeral.Ttl.TTL_1H)
+								.build())
 						.build()))
 				.addUserMessage(request.userMessage());
 

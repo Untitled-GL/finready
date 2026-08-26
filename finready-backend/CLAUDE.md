@@ -808,9 +808,13 @@ Step 13의 sanity 검증(`eval/prod_b_sanity_seed.json`의 `CONS_B_001` 1건)일
 
 - ~~LLM 모델·요금제~~ — **`claude-sonnet-4-6` 결정** (2026-08-18).
   실측 결과 $5로 약 100세션 — **quota는 빠듯하지 않다**(위 "실측한 것")
-- **캐시 TTL을 5분에서 1시간으로 올릴지** — 심사처럼 세션이 띄엄띄엄 오면 5분 TTL은
-  매번 쓰기(1.25배)만 물고 읽기 혜택이 없다. 1시간은 쓰기 2배지만 유지된다.
-  배포 전 결정 (`docs/decisions/2026-08-18-coverage-prompt-tuning.md`)
+- ~~캐시 TTL을 5분에서 1시간으로 올릴지~~ — **1시간으로 결정, 적용 완료**(2026-08-26).
+  `AiGateway.send()`의 `CacheControlEphemeral`에 `Ttl.TTL_1H` 지정. 심사가 09-07~09-11
+  닷새에 걸쳐 띄엄띄엄 들어오면 5분 TTL은 세션 간 캐시가 거의 안 겹쳐 매번 쓰기(1.25배)만
+  물고 읽기 혜택이 없다 — quota가 빠듯하지 않으므로(`docs/decisions/2026-08-18-coverage-prompt-tuning.md`)
+  쓰기 비용 증가(2배)보다 적중률을 우선했다. 실 배포에서 `llm_call_log`의 `cacheWrite`/
+  `cacheRead` 컬럼으로 실제 적중을 확인하는 건 DB 접근 권한이 있는 세션에서 후속으로 할 것
+  (이 세션은 DB 자격증명이 없어 API 200 응답으로만 1차 확인함)
 - ~~`CONS_A_001`의 R06 라벨~~ — **라벨이 아니라 코드 문제였다** (2026-08-18).
   Verifier를 안 돌린 EXPLAINED가 규칙 3 때문에 접히던 것 → Verifier 대상에 EXPLAINED 추가로 해소
 - **`CONS_A_001`의 R02·R03 불안정** — 실행마다 뒤집힌다. 입력이 모호한 케이스의 한계로 보이며
