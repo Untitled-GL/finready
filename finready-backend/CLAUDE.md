@@ -259,6 +259,55 @@ Render에 태움. **Gate 1/1 일치(`GATE_BLOCKED`, blocking=R02·R04) — 파�
 PROD_B 판정을 오염시키는지 관찰했는데, **눈에 띄는 오염은 없었다**(R01 자체는 정확히
 `EXPLAINED`/`SUPPORTS`로 판정됨) — 프롬프트는 이번 스코프에서 건드리지 않았다.
 
+## TRD §18 Step 9 — springdoc ↔ openapi.yml 계약 대조 — 완료 (2026-08-26)
+
+§17 원문(trd.txt)이 요구하는 건 "springdoc 생성 스펙 vs openapi.yaml 대조 — CI diff"
+한 줄이었다. §17 표의 나머지 항목(StateMachine·GateEvaluator 단위테스트, PDF
+SHA-256 검증 등)은 이미 구현돼 있었다. **전체 필드 1:1 대조(계약의 `description`이
+105곳)는 비현실적이라고 판단**, 경로 집합·메서드별 상태코드·요청/응답 최상위
+필드명만 구조적으로 대조하기로 스코프를 좁혔다. CI 워크플로(`.github/workflows`)
+신설은 배포 동결 임박으로 **이번 스코프 밖**(사용자 확정) — `integrationTest`
+태스크에서 로컬/수동으로 도는 테스트 코드까지만 만들었다.
+
+`OpenApiContractIntegrationTest`(`AbstractPostgresIntegrationTest` 상속,
+`webEnvironment=MOCK`+`@AutoConfigureMockMvc`로 서브클래스에서 오버라이드 —
+Testcontainers 배선은 상속하고 web 환경만 바꾼다) 신설. `docs/openapi.yml`은
+`finready-backend` 밖이라 클래스패스가 아니라 파일시스템 경로로 읽는다. YAML 파싱은
+springdoc의 전이 의존성(`org.yaml:snakeyaml`)을 그대로 썼다 — 신규 의존성 0개.
+
+**베이스라인 실행에서 실제 드리프트 2건을 잡았다** (테스트를 위한 테스트가 아니라
+실제로 작동했다는 증거):
+1. **`UnderstandingResponse`에 `progress`(`{currentRiskIndex, totalRiskCount}`) 필드가
+   없었다.** `/understanding`·`/recheck` 둘 다 영향. 계약대로 추가 완료
+2. **`StaffResolutionResponse`가 v1.4.2 재설계 이전 구조로 남아있었다.** 계약은
+   `{riskState, nextAction, progress, sessionStatus}`로 `RiskUnderstandingState`를
+   감싸는 구조인데, 코드는 요청을 그대로 echo하는 평평한 구조
+   (`riskId, disposition, reason, actor, aiStatus, workflowStatus, finalDisposition,
+   nextAction, createdAt`)를 그대로 반환하고 있었다 — **F07 직원 처리 응답이 실제로
+   계약과 다른 모양으로 나가고 있었다는 뜻**이다. `UnderstandingService`에
+   `UnderstandingQueryService`를 주입해 `GET /sessions/{id}`와 같은 조립 로직
+   (`statesOf`)을 재사용하도록 고쳤다 — 응답을 만드는 곳이 둘로 갈라지지 않는다
+
+**작업 중 별개의 실제 버그를 하나 더 발견해 고쳤다**: `com.anthropic:anthropic-java`가
+구조화 출력 스키마 생성용으로 전이 의존하는 구버전 `swagger-annotations`(비-jakarta,
+2.2.31, `jsonschema-module-swagger-2` 경유)가 springdoc이 쓰는
+`swagger-annotations-jakarta`(2.2.52)와 **같은 Java 패키지·클래스명**이라 클래스패스에
+둘 다 있으면 클래스로더가 먼저 집은 쪽이 이겨 `NoSuchMethodError:
+Schema.$dynamicRef()`로 `/v3/api-docs` 자체가 500이 났다. `build.gradle.kts`에서
+`anthropic-java`의 `swagger-annotations`(비-jakarta)를 exclude — Sonnet 4.6은
+구조화 출력을 지원하지 않아(`ai/AiGateway` 주석 참조) 이 경로를 원래 안 쓴다.
+
+컨트롤러 6개에 최소 `@ApiResponse(responseCode = "...")` 추가(스키마까지는 안 채움,
+코드만). **springdoc은 `@ApiResponse`가 하나라도 있으면 `@ResponseStatus`가 없는 한
+200을 더 이상 자동 추론하지 않는다** — 성공 응답도 명시해야 했다(모르면 다시 걸리는
+함정, 여기 적어둔다). `ErrorResponse`에 `@Schema(name = "Error")`를 붙여 springdoc이
+`ErrorResponse`가 아니라 계약이 참조하는 이름(`Error`)으로 컴포넌트 스키마를 짓게
+했다.
+
+**실측**: 신설 6개 테스트 전부 통과, 기존 `integrationTest` 23건 + 단위 358건 회귀
+없음. fetch join(§14.1 ①)과 p95 300ms 예산은 이 Step의 요구사항이 아니고 별개
+항목으로 사용자 확정에 따라 보류 중(위 §14.1 절 참조).
+
 ## 테스트 전략
 
 **하이브리드.** 순수 단위/`@WebMvcTest`는 기본 `test` 태스크, 실 Postgres가 필요한 검증은
@@ -754,7 +803,7 @@ Guardrail 상세는 `docs/decisions/2026-08-19-guardrail-negation.md`.
 > CORS는 `common/WebConfig`가 이 설정을 실제로 읽는다. 기본값이 `http://localhost:3000`이라
 > 위 값을 안 넣으면 배포 프론트에서 막힌다.
 
-> **TRD §18 Step 0~5, 7·8·10·11·13 완료. Step 6·9는 부분 진행, Step 12 미착수**
+> **TRD §18 Step 0~5, 7·8·9·10·11·13 완료. Step 6은 부분 진행, Step 12 미착수**
 > (2026-08-26, PDF §18 표를 직접 읽어 전체 Step 목록 확인함 — 더 이상 "PDF 봐야 함"
 > 상태 아님).
 > - 0~5(인프라~Coverage 레이턴시), 7·8(F04~F08), 10(평가모듈), 11(데모 preset 이관) — 완료
@@ -766,9 +815,18 @@ Guardrail 상세는 `docs/decisions/2026-08-19-guardrail-negation.md`.
 >   Step 13 완료로 PROD_B 시드 인프라는 생겼지만(seed만 있고 시나리오는 `CONS_B_001`
 >   sanity 1건뿐), **60/180 목표 자체는 P1이라 여전히 보류** — 필요하면 PROD_B용
 >   시나리오를 더 쓰는 진입장벽은 낮아진 상태
-> - 9(append-only·evidence·§17 계약테스트) — 쿼리 카운트 회귀 테스트·중복 쿼리 제거는
->   완료, §17 계약 테스트(springdoc 주석)·fetch join은 미착수. p95 300ms 예산도
->   실 배포에서 미충족 확인했으나 **사용자 확정으로 보류**(위 §14.1 절 참조)
+> - 9(append-only·evidence·§17 계약테스트) — **완료**(2026-08-26). 쿼리 카운트 회귀
+>   테스트·중복 쿼리 제거는 이미 돼 있었고, `OpenApiContractIntegrationTest`로
+>   springdoc ↔ `docs/openapi.yml` 자동 대조를 채웠다(경로·상태코드·최상위 필드명).
+>   **실 드리프트 2건을 발견해 코드를 계약에 맞게 고쳤다** — `UnderstandingResponse`에
+>   `progress` 필드 누락, `StaffResolutionResponse`가 v1.4.2 재설계(`{riskState,
+>   nextAction, progress, sessionStatus}`) 이전의 평평한 echo 구조로 남아있던 것.
+>   과정에서 `com.anthropic:anthropic-java`가 전이 의존하는 구버전
+>   `swagger-annotations`(비-jakarta, 2.2.31)가 springdoc의 `swagger-annotations-jakarta`
+>   (2.2.52)와 클래스 충돌해 `/v3/api-docs`가 500을 내는 문제도 잡아 exclude 처리했다
+>   (`build.gradle.kts`). fetch join(§14.1 ①)·p95 300ms 예산은 별개 항목으로
+>   **사용자 확정으로 보류**(위 §14.1 절 참조) — Step 9 자체(§17 요구사항)는 이걸
+>   요구하지 않는다
 > - 12(Prompt Freeze + Hold-out) — 미착수
 
 ### 데이터셋 현황 (별도 작업, 코드와 병행) — TRD §18 Step 6
