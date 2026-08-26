@@ -130,7 +130,8 @@ classifier 단독 기준으로 읽어 "충족"으로 기록해뒀는데, 판정 
 > "Step 5에 S1+S2 실측을 반드시 수행한다. 4주차에 발견하면 손쓸 시간이 없다.
 > 질문 3개는 세션 진입 시 미리 생성해 캐시한다."
 
-**Step 5 — Phase 0~5 완료, Phase 6 R1 완료.** 전체 설계·진행 상황·다음 작업은
+**Step 5 — 완료** (2026-08-26, 사용자 확정으로 Phase 6은 R1에서 종료 후 Phase 7 마무리).
+전체 설계·진행 상황은
 `docs/decisions/2026-08-20-coverage-latency-fanout.md` — 새 세션은 이 파일부터 읽을 것.
 (2026-08-20) Phase 0(기록 정정)·Phase 1(계측: `llm_call_log` 토큰 컬럼) 완료.
 (2026-08-25) `integrationTest` 21건 통과로 V4 마이그레이션 검증 완료.
@@ -153,10 +154,18 @@ classifier 단독 기준으로 읽어 "충족"으로 기록해뒀는데, 판정 
 픽스처로 HIGH 3회 + MEDIUM 3회 스윕 — **MEDIUM에서도 CONTRADICTS 3/3 유지**(정확도 리스크
 해소). 다만 대상 1개짜리 픽스처라 레이턴시 이득은 이 실험으로 드러나지 않았다(운영 평균
 출력 353 tok 대비 이 픽스처는 81~90 tok). **운영 기본값은 여전히 HIGH** — 스윕 전용
-package-private 생성자(`ClaudeSemanticVerifier(AiGateway, Effort)`)만 추가했다. R2 이후
-진행 여부는 별도 결정.
+package-private 생성자(`ClaudeSemanticVerifier(AiGateway, Effort)`)만 추가했다.
+**사용자가 여기서 사다리를 멈추기로 확정** — R2 이하는 미착수.
 
-상세는 `docs/decisions/2026-08-20-coverage-latency-fanout.md` "Phase 6 R1 결과"
+(2026-08-26) **Phase 7(문서·계약) 완료로 Step 5 종료.** `docs/openapi.yml`
+1.4.3→1.4.4(스키마 변경 없음, classifier "1회 batch call" 서술 정정 +
+`analysis.classifierLatencyMs`/`promptVersion` 설명 갱신). "실측 33초" 프론트 전달값을
+26.3초로 갱신(코드 변경 불필요 — fetch 타임아웃 60초가 이미 여유 안). **미해결로 남긴 것
+하나** — `finready-frontend/contracts/openapi.yml` 사본이 2026-08-22에 삭제된 채라
+`package.json`의 `gen:api`와 `contract.test.ts`가 깨져 있다. 되돌릴지 사본 없는 방식으로
+갈지는 **팀 결정 필요**, 손대지 않았다.
+
+상세는 `docs/decisions/2026-08-20-coverage-latency-fanout.md`
 
 **12초와 별개로 Coverage 엔드포인트에는 30초 계약 한도가 있다.** 둘을 섞지 말 것.
 
@@ -458,7 +467,11 @@ Hibernate가 실제 SQL을 만들어야 확인되므로, `@WebMvcTest` 쪽은 "�
   **계약 상한은 8,000자**다. → **`timeout-seconds` 30 → 60 으로 올렸다**(실패 모양만 변경).
   근본 해결인 classifier 배치 병렬화는 **항목 간 경계 규칙이 나빠질 위험**이 있어
   재측정이 필요하므로 F06~F08 이후로 미뤘다
-- **프론트에 실측 33초를 전달해야 한다** — fetch 타임아웃·대기 화면 기준값
+- ~~**프론트에 실측 33초를 전달해야 한다**~~ — **갱신** (2026-08-26, Step 5 Phase 7).
+  팬아웃 이후 재측정 최댓값은 **26.3초**(`CONS_A_004`, Phase 5)로 낮아졌다. 프론트
+  fetch 타임아웃은 이미 60초(`LLM_TIMEOUT_MS`, `spring-api.ts`)라 33초든 26초든 여유
+  안이었으므로 타임아웃 자체를 바꿀 필요는 없다 — 대기 화면 문구에 구체적인 초 단위
+  숫자를 박아뒀다면 그 값만 26초대로 낮출 것
 
 ### 실측한 것 (2026-08-19, F04~F07 전 구간 실 LLM)
 
@@ -728,9 +741,13 @@ Guardrail 상세는 `docs/decisions/2026-08-19-guardrail-negation.md`.
 - **Coverage 레이턴시가 TRD §14 예산(12초)을 넘는다** — 예산은 **S1+S2 합계**다.
   (2026-08-25) **팬아웃(Step 5 Phase 3~5) 적용 후 합계 평균 13.5~21.9s로 크게 줄었으나
   여전히 12초는 미충족.** classifier만 보면 43~51% 단축돼 예산 안쪽까지 왔지만, 안 쪼갠
-  verifier가 이제 상대적으로 더 큰 비중을 차지한다. Phase 6(사다리: verifier effort
-  HIGH→MEDIUM 등) 착수는 별도 결정 — DoD가 12초 달성을 요구하지 않는다.
-  `docs/decisions/2026-08-20-coverage-latency-fanout.md` "Phase 5 결과"
+  verifier가 이제 상대적으로 더 큰 비중을 차지한다.
+  (2026-08-26) **Step 5 종료 — 12초는 끝내 미충족인 채로 남는다.** Phase 6에서 verifier
+  effort HIGH→MEDIUM을 시험해 정확도 리스크는 해소했지만(`CONS_A_003` R01 CONTRADICTS
+  3/3 유지), 운영 기본값을 바꿔 레이턴시를 재측정하는 건 별도 결정으로 미루고 사용자
+  확정으로 여기서 멈췄다 — DoD가 "확인 또는 조정"이라 12초 달성을 요구하지 않는다.
+  더 밟으려면 `docs/decisions/2026-08-20-coverage-latency-fanout.md` "Phase 6 — 사다리"
+  R2부터.
 - **30초 계약 한도 — 팬아웃 후 5개 시나리오에서 안전권으로 확인** (2026-08-25).
   최댓값 26,294ms(`CONS_A_004`), 이전엔 `CONS_A_002`가 33,244ms(2026-08-19)로 실제 초과했었음.
   다만 **8,000자 상담문(계약 상한)이나 60개 시나리오로 늘었을 때는 미검증**이다.
