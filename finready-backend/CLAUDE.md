@@ -130,7 +130,7 @@ classifier 단독 기준으로 읽어 "충족"으로 기록해뒀는데, 판정 
 > "Step 5에 S1+S2 실측을 반드시 수행한다. 4주차에 발견하면 손쓸 시간이 없다.
 > 질문 3개는 세션 진입 시 미리 생성해 캐시한다."
 
-**Step 5 — Phase 0~5 완료.** 전체 설계·진행 상황·다음 작업은
+**Step 5 — Phase 0~5 완료, Phase 6 R1 완료.** 전체 설계·진행 상황·다음 작업은
 `docs/decisions/2026-08-20-coverage-latency-fanout.md` — 새 세션은 이 파일부터 읽을 것.
 (2026-08-20) Phase 0(기록 정정)·Phase 1(계측: `llm_call_log` 토큰 컬럼) 완료.
 (2026-08-25) `integrationTest` 21건 통과로 V4 마이그레이션 검증 완료.
@@ -149,7 +149,14 @@ classifier 단독 기준으로 읽어 "충족"으로 기록해뒀는데, 판정 
 - 사전 등록된 중단 조건 4개 전부 통과(`CONS_A_005` 8/9는 팬아웃 전 Phase 2에서도 동일해
   회귀 아님으로 판정, 상세는 결정 문서)
 
-상세는 `docs/decisions/2026-08-20-coverage-latency-fanout.md` "Phase 5 결과"
+(2026-08-26) **Phase 6 R1(verifier effort HIGH→MEDIUM) 완료.** `CONS_A_003` R01 고정
+픽스처로 HIGH 3회 + MEDIUM 3회 스윕 — **MEDIUM에서도 CONTRADICTS 3/3 유지**(정확도 리스크
+해소). 다만 대상 1개짜리 픽스처라 레이턴시 이득은 이 실험으로 드러나지 않았다(운영 평균
+출력 353 tok 대비 이 픽스처는 81~90 tok). **운영 기본값은 여전히 HIGH** — 스윕 전용
+package-private 생성자(`ClaudeSemanticVerifier(AiGateway, Effort)`)만 추가했다. R2 이후
+진행 여부는 별도 결정.
+
+상세는 `docs/decisions/2026-08-20-coverage-latency-fanout.md` "Phase 6 R1 결과"
 
 **12초와 별개로 Coverage 엔드포인트에는 30초 계약 한도가 있다.** 둘을 섞지 말 것.
 

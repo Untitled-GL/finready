@@ -26,6 +26,11 @@ class ClaudeSemanticVerifier implements SemanticVerifier {
 	 * 분류기(당시 coverage-v2)에만 있어서, 분류기가 "부연이 빠진 건 EXPLAINED"로 판정한 것을
 	 * Verifier 가 옛 기준으로 다시 깎는 일이 관측됐다(R04: classifier EXPLAINED →
 	 * verifier INSUFFICIENT). 두 단계가 다른 잣대를 쓰면 경계 케이스가 실행마다 흔들린다.
+	 *
+	 * <p>실제로 기록·노출되는 값은 여기에 effort 를 붙인 {@link #promptVersion} 이다 —
+	 * {@code ClaudeCoverageClassifier} 가 배치 크기를 문자열에 박아둔 것과 같은 이유
+	 * (Step 5 Phase 6). effort 가 다르면 다른 실험이고, 그것이 문자열에 없으면
+	 * {@code llm_call_log} 만 보고는 어느 조건의 행인지 복원할 수 없다.
 	 */
 	private static final String PROMPT_VERSION = "verifier-v3";
 	private static final String STAGE = "SEMANTIC_VERIFY";
@@ -34,6 +39,9 @@ class ClaudeSemanticVerifier implements SemanticVerifier {
 	 * 분류기(medium)보다 높다. 이 단계가 잡아야 하는 것이 "낙인 없음 → 원금 지켜짐" 같은
 	 * <b>표현은 비슷한데 의미가 반대인</b> 경우라, 여기서 추론을 아끼면 정확히 그 재현율이 떨어진다.
 	 * 대상 Risk 만 도는 호출이라 전체 비용에서 차지하는 비중도 작다.
+	 *
+	 * <p>Step 5 Phase 6 에서 MEDIUM 을 시험한다 — {@link #ClaudeSemanticVerifier(AiGateway,
+	 * OutputConfig.Effort)} 참조. 운영 기본값은 여전히 HIGH다.
 	 */
 	private static final OutputConfig.Effort EFFORT = OutputConfig.Effort.HIGH;
 
@@ -106,14 +114,29 @@ class ClaudeSemanticVerifier implements SemanticVerifier {
 			""";
 
 	private final AiGateway gateway;
+	private final OutputConfig.Effort effort;
+
+	/** 프롬프트 버전에 effort 를 붙인 실제 값. {@code llm_call_log.prompt_version} 에 들어간다 */
+	private final String promptVersion;
 
 	ClaudeSemanticVerifier(AiGateway gateway) {
+		this(gateway, EFFORT);
+	}
+
+	/**
+	 * <b>effort 스윕 전용</b>이다. 운영 호출부는 없다 — {@code AiPortConfig} 는 1-인자
+	 * 생성자를 쓴다 (Step 5 Phase 6, {@code ClaudeCoverageClassifier} 의
+	 * {@code risksPerCall} 스윕 생성자와 같은 이유).
+	 */
+	ClaudeSemanticVerifier(AiGateway gateway, OutputConfig.Effort effort) {
 		this.gateway = gateway;
+		this.effort = effort;
+		this.promptVersion = "%s-%s".formatted(PROMPT_VERSION, effort.toString().toLowerCase());
 	}
 
 	@Override
 	public String promptVersion() {
-		return PROMPT_VERSION;
+		return promptVersion;
 	}
 
 	@Override
@@ -121,12 +144,12 @@ class ClaudeSemanticVerifier implements SemanticVerifier {
 		AiGateway.AiCall call = new AiGateway.AiCall(
 				sessionId,
 				STAGE,
-				PROMPT_VERSION,
+				promptVersion,
 				SYSTEM_PROMPT,
 				buildUserMessage(transcript, requests),
 				"targets=%d".formatted(requests.size()),
 				2048L,
-				EFFORT);
+				effort);
 
 		return gateway.call(call, this::parse);
 	}

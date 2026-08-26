@@ -1,10 +1,10 @@
 # Coverage S1+S2 레이턴시 — TRD §18 Step 5
 
-**상태: Phase 0~5 완료.** classifier 레이턴시 43~51% 단축, Gate·Risk 정확도 무손실 확인. **12초 예산은 아직 미충족**이나 30초 계약 한도는 안전해졌다. Phase 6(사다리) 착수 여부 결정 대기.
+**상태: Phase 0~5 완료, Phase 6 R1(verifier effort) 완료.** classifier 레이턴시 43~51% 단축, Gate·Risk 정확도 무손실 확인. **12초 예산은 아직 미충족**이나 30초 계약 한도는 안전해졌다. Phase 6 R1: verifier MEDIUM에서도 `CONS_A_003` R01 CONTRADICTS 3/3 유지(정확도 리스크 해소) — 다만 이 픽스처(대상 1개)로는 레이턴시 이득이 드러나지 않았고, 운영 기본값은 아직 HIGH 그대로다. R2 이후 진행 여부 결정 대기.
 
 ## 다음 작업 (여기부터 읽는다)
 
-Phase 5까지 끝났다. 아래 "Phase 5 결과 (2026-08-25)"를 먼저 읽는다. 12초를 마저 노릴지(Phase 6 사다리) 여기서 멈출지는 **DoD가 강제하지 않는다** — "확인 또는 조정"이 접속사이고, 사다리를 어디까지 밟았고 왜 멈췄는지가 남으면 단계는 닫힌다.
+Phase 6 R1까지 끝났다. 아래 "Phase 6 R1 결과 (2026-08-26)"를 먼저 읽는다. R1은 정확도만 검증했고 운영값은 안 바뀌었다 — 레이턴시 이득을 실측하려면 운영 기본값을 바꾸고 배포 후 재측정해야 하는데, 그건 별도 결정이다. R2(reason 길이 축소, 위험 낮음)로 넘어갈지, 여기서 멈출지도 **DoD가 강제하지 않는다** — "확인 또는 조정"이 접속사이고, 사다리를 어디까지 밟았고 왜 멈췄는지가 남으면 단계는 닫힌다.
 
 각 Phase 완료 시 이 문서의 "진행 상황" 표를 갱신하고 커밋할 것.
 
@@ -18,7 +18,7 @@ Phase 5까지 끝났다. 아래 "Phase 5 결과 (2026-08-25)"를 먼저 읽는�
 | 3 | classifier 팬아웃 구현 | **완료** (`637f70f`, 2026-08-25) |
 | 4 | 팬아웃 테스트 | **완료** — `ClaudeCoverageClassifierFanOutTest` 11건 (`637f70f`) |
 | 5 | 재측정 + Gate 프로토콜 | **완료** (2026-08-25). 사전 등록 중단 조건 4개 전부 통과 |
-| 6 | 사다리 (필요시) | **결정 대기** — 12초 미충족이나 DoD가 요구하지 않음 |
+| 6 | 사다리 (필요시) | **R1 완료** (2026-08-26). verifier MEDIUM 정확도 유지(3/3), 레이턴시 이득은 이 픽스처로 미검증. R2 이후 결정 대기 |
 | 7 | 문서·계약 최종화 | 대기 |
 
 ---
@@ -386,6 +386,40 @@ Phase 2/5 양쪽에서 `CONS_A_005`의 R02가 동일하게 어긋난다. 라벨�
 
 **S1/S2 파이프라이닝은 기각** — classifierLatencyMs/verifierLatencyMs가 겹치는
 구간이 되어 합이 wallMs를 넘어 통계가 무의미해진다.
+
+## Phase 6 R1 결과 (2026-08-26) — verifier effort HIGH → MEDIUM
+
+`ClaudeSemanticVerifier`에 스윕 전용 package-private 생성자
+`ClaudeSemanticVerifier(AiGateway, OutputConfig.Effort)`를 추가했다(classifier의
+`risksPerCall` 스윕 생성자와 같은 패턴). `promptVersion`에 effort를 붙여
+(`verifier-v3-high` / `verifier-v3-medium`) `llm_call_log`에서 조건이 구분되게 했다.
+운영 기본값(`AiPortConfig`가 쓰는 1-인자 생성자)은 그대로 HIGH다 — 아직 전환 안 함.
+
+`EvalVerifierFactory`(신규, classifier의 `EvalClassifierFactory`와 같은 이유로
+package-private 생성자에 닿기 위함) + `VerifierEffortSweepTest`(신규, `@Tag("evaluation")`)로
+`CONS_A_003` R01("낙인 없음 → 원금 지켜짐")을 고정 픽스처 삼아 HIGH 3회 + MEDIUM 3회를
+같은 세션에서 나란히 돌렸다. classifier는 부르지 않았다 — evidenceText를 상담 원문에서
+직접 고정해 분류기 변동성과 effort라는 두 변수가 섞이지 않게 했다.
+
+```
+HIGH   median=2297ms  CONTRADICTS=3/3
+MEDIUM median=2438ms  CONTRADICTS=3/3
+```
+
+**정확도: 완전 유지.** MEDIUM에서도 3/3 CONTRADICTS — 사전 등록 중단 조건(R1 이 실험의
+존재 이유였던 그 케이스)을 통과했다. 이 축소를 확대할 근거는 있다.
+
+**레이턴시: 이 표본에서는 결론 낼 수 없다.** MEDIUM이 오히려 근소하게 느렸다(둘 다 n=3,
+차이가 편차 안에 있다). 더 중요한 문제는 **이 픽스처가 운영 조건을 대표하지 않는다**는
+점이다 — 대상 1개, 출력 81~90 tok인데 Phase 2 실측 verifier 평균 출력은 353 tok(대상
+여러 개를 한 번에 처리)이다. verifier 레이턴시의 절편 비중(1,522ms, Phase 2 회귀)이 커서
+출력이 작은 이 픽스처에서는 애초에 effort 차이가 드러날 여지가 작다.
+
+**결론: 정확도 리스크는 해소됐으나, 이 결과만으로 운영 기본값을 MEDIUM으로 바꾸지 않는다.**
+레이턴시 이득을 실측하려면 Phase 2/5와 같은 프로토콜(실제 다중 대상 verifier 호출,
+배포 환경)로 재측정해야 하고, 그건 운영 코드를 바꾸고 배포까지 가야 하는 별도 결정이다.
+마감(2026-09-07)까지 시간이 넉넉하지 않고 DoD가 12초를 요구하지 않으므로, 이 결과를
+남기고 진행 여부는 별도 확인 후 결정.
 
 ---
 
