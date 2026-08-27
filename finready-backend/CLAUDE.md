@@ -264,6 +264,43 @@ Render에 태움. **Gate 1/1 일치(`GATE_BLOCKED`, blocking=R02·R04) — 파�
 PROD_B 판정을 오염시키는지 관찰했는데, **눈에 띄는 오염은 없었다**(R01 자체는 정확히
 `EXPLAINED`/`SUPPORTS`로 판정됨) — 프롬프트는 이번 스코프에서 건드리지 않았다.
 
+## Gate 승격 규칙 미구현 — 수정 (2026-08-27)
+
+프론트에서 "WARN_ONLY라도 NOT_FOUND·CONTRADICTED면 Gate를 막아달라"는 요청이 왔다.
+두 요구를 **상위 문서에 대조한 결과 정반대 결론이 나왔다.**
+
+**PRD §7.3(DEV FREEZE) 원문:**
+> GATE_REQUIRED Risk 가 유효 EXPLAINED 가 아니면 GATE_BLOCKED. **WARN_ONLY 의
+> INSUFFICIENT/NOT_FOUND 는 진행 가능하나** Report 에 남고 종료 전 acknowledge 가 필요하다.
+> coveragePolicy != NOT_APPLICABLE Risk 의 **CONTRADICTED 는 coveragePolicy 와 무관하게
+> GATE_BLOCKED 로 승격한다.**
+
+TRD §8.6도 같은 규칙을 의사코드로 못박는다:
+`blocking = (GATE_REQUIRED AND coverage_status != EXPLAINED) OR (coverage_status == CONTRADICTED)`,
+`warnings = WARN_ONLY AND coverage_status in (INSUFFICIENT, NOT_FOUND)`.
+
+- **CONTRADICTED 승격 = 신규 요청이 아니라 미구현 버그였다.** `GateEvaluator`가
+  `blockingRiskIds`를 `policy == GATE_REQUIRED`로만 걸러서, **WARN_ONLY + CONTRADICTED가
+  Gate를 통과했다.** 게다가 `warningRiskIds`에 담겨 "경고로 처리하고 진행"이라는
+  정반대 뜻으로 화면에 내려갔다. 수정함 — `isBlocking()`이 TRD §8.6 식을 그대로 옮긴다.
+- **NOT_FOUND 차단은 하지 않았다.** 두 문서가 명시적으로 "진행 가능"으로 규정한다.
+  코드를 고칠 게 아니라 PRD를 고쳐야 하는 사안이고, PRD는 DEV FREEZE다.
+
+**NOT_FOUND까지 막았다면 대표 데모가 죽는다** (실행 전 시드로 검산):
+`CONS_A_001`(main 프리셋)은 보완 후에도 R05·R07·R09가 `NOT_FOUND`로 남아
+`READY_FOR_UNDERSTANDING`에 **영원히 도달하지 못한다.** `CONS_A_006`은 보완문이
+아예 없어 복구 경로조차 없다. 더 나쁜 건 **`docs/decisions/2026-08-20-coverage-latency-fanout.md`가
+기록한 불안정이 정확히 NOT_FOUND↔INSUFFICIENT 경계**라는 점이다 — 지금은 둘 다
+GATE_REQUIRED를 똑같이 막아서 Gate가 안 흔들리지만, WARN_ONLY에서 둘을 갈라놓으면
+**분류기가 실행마다 뒤집는 그 경계가 데모의 진행 여부를 결정하게 된다.**
+
+**이번 수정으로 바뀌는 데모 결과는 없다.** 시드 6개 시나리오 어디에도 WARN_ONLY +
+CONTRADICTED 조합이 없어(검산 완료) `expectedGateResult`가 전부 그대로다 —
+`DemoSeedGateConsistencyTest`가 이를 독립적으로 재확인한다. 시드 수정·재평가 불필요.
+
+계약에는 이 승격 규칙이 **어디에도 적혀 있지 않았다**(프론트가 "누락된 기능"으로 읽은 이유).
+`blockingRiskIds`/`warningRiskIds` 설명에 판정식을 명문화하고 openapi 1.4.5→1.4.6.
+
 ## TRD §18 Step 9 — springdoc ↔ openapi.yml 계약 대조 — 완료 (2026-08-26)
 
 §17 원문(trd.txt)이 요구하는 건 "springdoc 생성 스펙 vs openapi.yaml 대조 — CI diff"

@@ -48,14 +48,59 @@ class GateEvaluatorTest {
 	}
 
 	@Test
-	@DisplayName("WARN_ONLY 는 미충족이어도 문을 막지 않고 warning 으로만 모인다")
-	void warnOnlyNeverBlocks() {
+	@DisplayName("WARN_ONLY 의 NOT_FOUND 는 문을 막지 않고 warning 으로만 모인다")
+	void warnOnlyNotFoundDoesNotBlock() {
 		GateEvaluator.GateVerdict verdict = evaluator.evaluate(
 				List.of(explained("R01"), explained("R02"), notFound("R05")), POLICIES, Set.of());
 
 		assertThat(verdict.canProceedToUnderstanding()).isTrue();
 		assertThat(verdict.blockingRiskIds()).isEmpty();
 		assertThat(verdict.warningRiskIds()).containsExactly("R05");
+	}
+
+	@Test
+	@DisplayName("WARN_ONLY 의 INSUFFICIENT 도 막지 않는다 — PRD §7.3 이 '진행 가능'으로 규정한다")
+	void warnOnlyInsufficientDoesNotBlock() {
+		GateEvaluator.GateVerdict verdict = evaluator.evaluate(
+				List.of(explained("R01"), explained("R02"), insufficient("R05")), POLICIES, Set.of());
+
+		assertThat(verdict.gateStatus()).isEqualTo(GateStatus.READY_FOR_UNDERSTANDING);
+		assertThat(verdict.blockingRiskIds()).isEmpty();
+		assertThat(verdict.warningRiskIds()).containsExactly("R05");
+	}
+
+	@Test
+	@DisplayName("WARN_ONLY 여도 CONTRADICTED 면 막는다 — policy 무관 승격(PRD §7.3 · TRD §8.6)")
+	void contradictedIsPromotedRegardlessOfPolicy() {
+		GateEvaluator.GateVerdict verdict = evaluator.evaluate(
+				List.of(explained("R01"), explained("R02"), contradicted("R05")), POLICIES, Set.of());
+
+		assertThat(verdict.gateStatus()).isEqualTo(GateStatus.GATE_BLOCKED);
+		assertThat(verdict.canProceedToUnderstanding()).isFalse();
+		assertThat(verdict.blockingRiskIds()).containsExactly("R05");
+	}
+
+	@Test
+	@DisplayName("승격된 WARN_ONLY CONTRADICTED 는 warning 에 중복으로 담기지 않는다")
+	void promotedContradictedIsNotAlsoAWarning() {
+		GateEvaluator.GateVerdict verdict = evaluator.evaluate(
+				List.of(explained("R01"), explained("R02"), contradicted("R05"), notFound("R06")),
+				POLICIES, Set.of());
+
+		// 막는 항목이 동시에 "경고로 처리하고 통과" 목록에 있으면 화면이 둘 중 하나를 잘못 읽는다
+		assertThat(verdict.blockingRiskIds()).containsExactly("R05");
+		assertThat(verdict.warningRiskIds()).containsExactly("R06");
+	}
+
+	@Test
+	@DisplayName("승격된 WARN_ONLY CONTRADICTED 도 Override 하면 READY_WITH_STAFF_OVERRIDE 로 열린다")
+	void overrideOpensPromotedContradicted() {
+		GateEvaluator.GateVerdict verdict = evaluator.evaluate(
+				List.of(explained("R01"), explained("R02"), contradicted("R05")), POLICIES, Set.of("R05"));
+
+		assertThat(verdict.gateStatus()).isEqualTo(GateStatus.READY_WITH_STAFF_OVERRIDE);
+		assertThat(verdict.canProceedToUnderstanding()).isTrue();
+		assertThat(verdict.blockingRiskIds()).isEmpty();
 	}
 
 	@Test
@@ -114,6 +159,12 @@ class GateEvaluatorTest {
 	private CoverageResult notFound(String riskId) {
 		return factory.create("S", 1L, riskId, CoverageStatus.NOT_FOUND, "언급 없음", null, null,
 				ProvenanceCheck.failed(ProvenanceFailureReason.EMPTY), null);
+	}
+
+	private CoverageResult insufficient(String riskId) {
+		return factory.create("S", 1L, riskId, CoverageStatus.INSUFFICIENT, "언급은 있으나 불완전",
+				"근거 확인", "원문에서 인용한 구간", ProvenanceCheck.found(0, 20),
+				SemanticRelation.INSUFFICIENT);
 	}
 
 	private CoverageResult contradicted(String riskId) {

@@ -17,9 +17,32 @@ import java.util.Set;
 @Component
 public class GateEvaluator {
 
-	/** GATE_REQUIRED Risk 가 이 상태면 문을 막는다. EXPLAINED 만 통과다 */
-	private static final Set<CoverageStatus> BLOCKING =
-			Set.of(CoverageStatus.INSUFFICIENT, CoverageStatus.NOT_FOUND, CoverageStatus.CONTRADICTED);
+	/** WARN_ONLY 중 종료 전 acknowledge 대상 (TRD §8.6 {@code warnings}) */
+	private static final Set<CoverageStatus> ACKNOWLEDGEABLE =
+			Set.of(CoverageStatus.INSUFFICIENT, CoverageStatus.NOT_FOUND);
+
+	/**
+	 * TRD §8.6 {@code blocking} 을 그대로 옮긴 것이다.
+	 *
+	 * <pre>
+	 * (coveragePolicy == GATE_REQUIRED AND coverage_status != EXPLAINED)
+	 * OR (coverage_status == CONTRADICTED)          # policy 무관 승격
+	 * </pre>
+	 *
+	 * <p><b>CONTRADICTED 는 WARN_ONLY 여도 막는다</b>(PRD §7.3 · TRD §8.6). 반대로 설명한
+	 * 상담은 중요도가 낮은 항목이라도 그냥 통과시킬 수 없다는 판단이며, 등급이 아니라
+	 * 방향의 문제라서 정책과 무관하게 승격된다.
+	 *
+	 * <p><b>WARN_ONLY 의 NOT_FOUND·INSUFFICIENT 는 막지 않는다</b> — 같은 두 문서가
+	 * 명시적으로 "진행 가능"으로 규정한다. warning 으로 모아 종료 전 acknowledge 를 받는다.
+	 */
+	private boolean isBlocking(CoverageResult result, CoveragePolicy policy) {
+		if (policy == null || policy == CoveragePolicy.NOT_APPLICABLE) {
+			return false;
+		}
+		return (policy == CoveragePolicy.GATE_REQUIRED && result.getCoverageStatus() != CoverageStatus.EXPLAINED)
+				|| result.getCoverageStatus() == CoverageStatus.CONTRADICTED;
+	}
 
 	/**
 	 * @param results       분석된 Risk 별 결과
@@ -30,17 +53,20 @@ public class GateEvaluator {
 	                            Map<String, CoveragePolicy> policies,
 	                            Set<String> overriddenRiskIds) {
 
-		List<String> blockingRiskIds = results.stream()
-				.filter(r -> policies.get(r.getRiskId()) == CoveragePolicy.GATE_REQUIRED)
-				.filter(r -> BLOCKING.contains(r.getCoverageStatus()))
+		List<CoverageResult> blocking = results.stream()
+				.filter(r -> isBlocking(r, policies.get(r.getRiskId())))
+				.toList();
+
+		List<String> blockingRiskIds = blocking.stream()
 				.map(CoverageResult::getRiskId)
 				.filter(riskId -> !overriddenRiskIds.contains(riskId))
 				.toList();
 
-		// WARN_ONLY 는 문을 막지 않는다. 종료 전 acknowledge 대상으로만 모은다
+		// WARN_ONLY 의 미확인·불충분만 모은다. CONTRADICTED 는 위에서 막혔으므로
+		// 여기 들어오면 "경고로 처리하고 통과"라는 반대 뜻이 된다
 		List<String> warningRiskIds = results.stream()
 				.filter(r -> policies.get(r.getRiskId()) == CoveragePolicy.WARN_ONLY)
-				.filter(r -> BLOCKING.contains(r.getCoverageStatus()))
+				.filter(r -> ACKNOWLEDGEABLE.contains(r.getCoverageStatus()))
 				.map(CoverageResult::getRiskId)
 				.toList();
 
@@ -49,9 +75,7 @@ public class GateEvaluator {
 		}
 
 		// Override 로 열렸는지, 원래 열려 있었는지를 구분한다. 리포트에 남아야 하는 차이다
-		boolean openedByOverride = results.stream()
-				.filter(r -> policies.get(r.getRiskId()) == CoveragePolicy.GATE_REQUIRED)
-				.filter(r -> BLOCKING.contains(r.getCoverageStatus()))
+		boolean openedByOverride = blocking.stream()
 				.anyMatch(r -> overriddenRiskIds.contains(r.getRiskId()));
 
 		GateStatus status = openedByOverride
@@ -64,7 +88,8 @@ public class GateEvaluator {
 	/**
 	 * @param canProceedToUnderstanding 고객 이해 확인 버튼 활성화 여부. 프론트가 재계산하지 않는다
 	 * @param blockingRiskIds           현재 Gate 를 막고 있는 Risk. 빈 배열이면 통과
-	 * @param warningRiskIds            WARN_ONLY 중 미확인·불충분. 종료 전 acknowledge 대상
+	 * @param warningRiskIds            WARN_ONLY 중 미확인·불충분. 종료 전 acknowledge 대상.
+	 *                                  CONTRADICTED 는 여기 오지 않는다 — blockingRiskIds 로 간다
 	 */
 	public record GateVerdict(
 			GateStatus gateStatus,
