@@ -2,16 +2,22 @@ openapi: 3.1.0
 
 info:
   title: FinReady API
-  version: 1.4.4
+  version: 1.4.5
   description: |
     FinReady MVP 백엔드 API 계약.
     기준: **PRD v1.3.1 DEV FREEZE §7.6 / §12 + Backend TRD v1.2.3**.
+
+    ## v1.4.4 → v1.4.5 변경 (Step 5 실측 수치 정정)
+    - **스키마 변경 없음.** 서술만 정정한다.
+    - 아래 v1.4.4 항목의 "classifier 레이턴시 43~51% 단축"이 실측 표(시나리오당 n=3)와
+      맞지 않았다 — 실제 범위는 41~51%(반올림). `docs/decisions/2026-08-20-coverage-latency-fanout.md`
+      정정에 맞춰 값만 바로잡는다.
 
     ## v1.4.3 → v1.4.4 변경 (Coverage classifier 팬아웃 — TRD §18 Step 5)
     - **스키마 변경 없음.** 서술만 정정한다.
     - `POST /sessions/{sessionId}/coverage` 설명에서 classifier의 "1회 batch call"
       표현을 지웠다. 실제로는 Risk 9개를 3개씩 3배치로 나눠 병렬 호출한다
-      (classifier 레이턴시 43~51% 단축, Gate·Risk 정확도 무손실 — 실측 상세는
+      (classifier 레이턴시 41~51% 단축, Gate·Risk 정확도 무손실 — 실측 상세는
       `docs/decisions/2026-08-20-coverage-latency-fanout.md`). Verifier는 이번에
       쪼개지 않았고 여전히 대상 전체를 1회 batch call로 검증한다 — 그 문구는
       그대로 둔다.
