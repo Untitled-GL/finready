@@ -84,6 +84,10 @@ AI는 답변을 `UNDERSTOOD` / `MISUNDERSTOOD` / `UNCERTAIN`으로 판정하고,
 데모 상품은 **검증용 가상 상품**이다. 실제 판매 상품이 아니며 특정 금융회사 상품을 복제하지 않는다.
 상품설명서 PDF는 SHA-256으로 고정되어 있고, 기동 시 시드와 해시가 일치하지 않으면 서버가 뜨지 않는다.
 
+DB에는 상품이 하나 더 있다 — **PROD_B**(낙인형 archetype 합성 대조군, `isLiveDemo: false`).
+Coverage 파이프라인이 PROD_A의 구조(No-Knock-in Step-down)에 하드코딩되지 않았음을 검증하는
+용도로만 존재하며 데모·심사 화면에는 노출되지 않는다(TRD §18 Step 13).
+
 ---
 
 ## 데모 시나리오
@@ -106,7 +110,7 @@ finready/
 ├── docs/
 │   ├── FinReady_PRD_DEV_FREEZE_v1.3.1.pdf   제품 요구사항 (DEV FREEZE)
 │   ├── FinReady Backend TRD v1_2_3.pdf      기술 설계 — 데이터 모델·상태머신·검증 절차
-│   ├── openapi.yml                          API 계약 원본 (v1.4.2) ← 단일 원천
+│   ├── openapi.yml                          API 계약 원본 (v1.4.4) ← 단일 원천
 │   ├── backend-notes.md                     백엔드 작업 메모
 │   └── decisions/                           결정 기록 (왜 그렇게 했는지)
 │
@@ -116,11 +120,11 @@ finready/
 │       ├── java/io/finready/  도메인별 패키지 (아래 참조)
 │       └── resources/
 │           ├── db/migration/  Flyway V1(테이블 14개) · V2(append-only) · V3(제약 수정)
-│           ├── seed/          product_a_risk_schema.json(위험 9건) + customer_profiles.json
-│           └── static/documents/PROD_A/v1.0.pdf   상품설명서 (SHA-256 고정)
+│           ├── seed/          product_a_risk_schema.json(위험 9건) + product_b_risk_schema.json(합성 대조군)
+│           │                  + customer_profiles.json
+│           └── static/documents/PROD_A, PROD_B/v1.0.pdf   상품설명서 (SHA-256 고정)
 │
 └── finready-frontend/         Next.js App Router
-    ├── contracts/openapi.yml  계약 사본 (v1.4.2 — 원본과 동일)
     └── src/
         ├── app/               라우트
         ├── screens/           화면 단위 컴포넌트 (s01~s08)
@@ -489,7 +493,7 @@ pnpm lint             # eslint
 만들어야 확인되므로, `test` 쪽은 "코드에 그렇게 적어놨다"까지만 본다. 실제 Postgres가 필요한
 검증은 `integrationTest`로 분리했다.
 
-기준 규모는 `test` 268건 + `integrationTest` 18건 (2026-08-19). 실제 LLM을 호출하는 것은
+기준 규모는 `test` 358건 + `integrationTest` 29건 (2026-08-26). 실제 LLM을 호출하는 것은
 `evaluate`뿐이며, `finready-backend/tools/`의 PowerShell 스크립트로 Coverage·Understanding
 전 구간 실측도 돌린다.
 
@@ -528,7 +532,7 @@ pnpm lint             # eslint
 
 ## API 계약 운영 규칙
 
-`docs/openapi.yml`(현재 **v1.4.2**)이 단일 원천이고, **백엔드만 수정한다.**
+`docs/openapi.yml`(현재 **v1.4.4**)이 단일 원천이고, **백엔드만 수정한다.**
 
 바꿀 때 세 가지를 함께 한다.
 
@@ -536,17 +540,17 @@ pnpm lint             # eslint
 2. `description`의 변경 이력 블록에 요약을 적는다
 3. 커밋 메시지 앞에 `contract:`를 붙인다
 
-`finready-frontend/contracts/openapi.yml`은 **사본**이다.
-원본을 고쳤으면 사본 동기화(+ `pnpm gen:api`)까지가 한 작업이다.
+> **계약 사본을 두지 않기로 결정했다** (2026-08-26). `finready-frontend/contracts/openapi.yml`은
+> 2026-08-22에 삭제된 채였는데, 되살리는 대신 프론트가 이 루트 파일(`docs/openapi.yml`)을
+> 직접 참조하는 쪽으로 정리했다 — 사본이 갈라질 걱정 자체가 없어진다.
+> ⚠️ **다만 프론트 `package.json`의 `gen:api` 스크립트는 아직 옛 경로
+> (`contracts/openapi.yml`)를 가리키고 있어 지금 돌리면 파일을 못 찾는다.** 이 결정을
+> 실제로 반영하는 건(스크립트 경로 수정 + 재생성) 프론트 쪽 작업으로 남아 있다.
 
-> ✅ 사본은 **v1.4.2로 동기화 완료** (2026-08-14). 두 파일에 diff가 없다.
-> 프론트도 재생성해서 v1.4.2가 추가한 필드(`StaffResolutionResponse`,
-> `UnderstandingResponse.recheckQuestion`, `RiskUnderstandingState.pendingQuestion`,
-> `SessionSnapshotResponse.nextAction`)를 실제로 쓰고 있다.
-
-프론트 병렬 개발용으로 이 파일을 Prism 또는 msw에 물려 mock 서버로 쓸 수 있다
-(`servers[1]` = `http://localhost:4010/api`). 다만 현재 프론트는 자체 인메모리
-mock 어댑터를 쓰고 있어 별도 mock 서버 없이도 개발된다.
+TRD §17 계약 대조 테스트(`OpenApiContractIntegrationTest`, `./gradlew integrationTest`)가
+springdoc이 실제로 생성하는 스펙과 이 파일이 경로·상태코드·요청/응답 최상위 필드명
+수준에서 어긋나지 않는지 자동으로 확인한다 — 백엔드 코드가 계약과 갈라지면 이 테스트가
+잡는다.
 
 ---
 
@@ -567,40 +571,59 @@ chore: .gitignore 패턴 기반으로 변경
 
 ## 현재 진행 상황
 
-### 프론트엔드 — mock 기반 vertical slice 완성
+### 프론트엔드 — mock 기반 vertical slice 완성, 실서버 연동 확인
 
 랜딩 → S01 → S02 → S03(Coverage/Gate/Override) → 인계 → S04~S06(이해확인/재설명)
 → S07(직원 처리) → S08(리포트/종료)까지 전 구간이 동작한다.
-main·safety 두 시나리오 모두 끝까지 통과한다.
-실서버 어댑터(`SpringFinReadyApi`)는 작성돼 있고, 연결은 환경변수 교체만 남았다.
+main·safety 두 시나리오 모두 끝까지 통과한다. **배포된 백엔드(Render)와 실제로 연결돼
+동작 확인됨** — `SpringFinReadyApi` 어댑터로 전환 완료.
 
-계약 v1.4.2를 실제로 소비한다 — `/staff-resolution` 응답의 `nextAction`으로 S07이 이동하고
+계약을 실제로 소비한다 — `/staff-resolution` 응답의 `nextAction`으로 S07이 이동하고
 (세션을 다시 읽어 `resumePoint`로 추정하던 우회를 제거), `pendingQuestion` 덕에 재확인 도중
 새로고침해도 attempt 1로 되돌아가지 않는다.
 
-### 백엔드 — F01~F07 구현 완료, F08만 남음
+> ⚠️ `StaffResolutionResponse`가 2026-08-26에 계약대로 재설계됐다(`{riskState, nextAction,
+> progress, sessionStatus}`) — 이전엔 요청을 그대로 echo하는 평평한 구조였다. 프론트가
+> 이 응답의 필드를 최상위에서 읽고 있었다면 `response.riskState.xxx`로 경로가 바뀐다.
+> S07 화면을 다시 붙여서 확인할 것.
 
-Java 소스 118개. 인프라·데이터·API가 F07까지 올라와 있고 실제 LLM으로 검증까지 마쳤다.
+### 백엔드 — F01~F08 전 구간 구현 완료
+
+Java 소스 134개. F01~F08 전 파이프라인이 실제 LLM으로 검증까지 마쳤다.
 
 | 기능 | 상태 | 비고 |
 |---|---|---|
-| F01 상품·고객 로드 | ✅ | openapi v1.4.2와 응답 대조 완료 |
+| F01 상품·고객 로드 | ✅ | 데모 preset 서버 이관 완료(v1.4.3) |
 | F02 세션·Revision | ✅ | `StateMachine` 전이표 전수 테스트 |
-| F03 Coverage + Gate | ✅ | 실 LLM 5개 시나리오 검증 |
+| F03 Coverage + Gate | ✅ | classifier 팬아웃 적용, 6개 시나리오 실 LLM 검증 |
 | F04 질문 발급 | ✅ | 멱등. 생성 실패는 `FALLBACK`으로 정상 처리 |
 | F05 답변 판정 | ✅ | attempt는 **경로가 정한다** (`/understanding`=1) |
 | F06 근거 기반 재설명 | ✅ | `Guardrail` 금칙어 검사 포함 |
-| F07 재확인·직원 처리 | ✅ | attempt 2는 `/recheck` |
-| **F08 리포트·종료** | ❌ | `GET /report` · `POST /close` 미구현 |
-| `GET /sessions/{id}` 스냅샷 | ⚠️ | 세션은 돌려주지만 `coverage=null` · `understanding=[]` |
+| F07 재확인·직원 처리 | ✅ | `StaffResolutionResponse` 계약 드리프트 수정 완료(2026-08-26) |
+| F08 리포트·종료 | ✅ | `GET /report` · `POST /close` · 감사 로그 9개 지점 |
+| `GET /sessions/{id}` 스냅샷 | ✅ | `coverage`·`understanding`·`nextAction` 전부 채워짐 |
+
+**TRD §18 진행 상황** (Step 0~13, 2026-08-26 기준)
+
+| Step | 내용 | 상태 |
+|---|---|---|
+| 0~5 | 인프라 ~ Coverage 레이턴시(팬아웃) | ✅ 완료 |
+| 6 | dev set 60시나리오 확장 | PROD_A 6/60 — **P1(필수 아님), 보류** |
+| 7·8 | F04~F08 | ✅ 완료 |
+| 9 | springdoc ↔ openapi.yml 계약 대조 | ✅ 완료 — 실 드리프트 2건 발견·수정 |
+| 10 | 오프라인 평가 모듈 + Rule baseline | ✅ 완료 |
+| 11 | 데모 preset 서버 이관 | ✅ 완료 |
+| 12 | Prompt Freeze + Hold-out 1회 평가 | 미착수 — 최종 제출 직전 1회만 평가하는 성격이라 지금 할 일은 아님 |
+| 13 | Cross-product sanity (PROD_B) | ✅ 완료 |
 
 **인프라 (완료)**
 
 - Supabase `finready` 스키마 + 전용 role, Flyway V1~V3 적용
 - **Render 배포** — https://finready-backend.onrender.com (`/actuator/health` 200)
 - JPA 엔티티 14개 + enum 16개, `ddl-auto: validate` 통과
-- 시드 로더·검증기 — 위험 9건 + 고객 프로파일 3건, 해시 불일치 시 기동 중단
-- Testcontainers 통합 테스트, 평가 스크립트 2종
+- 시드 로더·검증기 — 위험 9건 × 2상품(PROD_A/B) + 고객 프로파일 6건, 해시 불일치 시 기동 중단
+- Testcontainers 통합 테스트, 평가 스크립트 2종, `OpenApiContractIntegrationTest`(계약 대조)
+- prompt caching TTL 1시간(심사가 여러 날에 걸쳐 띄엄띄엄 들어올 것을 감안)
 
 **실 LLM 실측에서 알게 된 것**
 
@@ -618,36 +641,33 @@ Java 소스 118개. 인프라·데이터·API가 F07까지 올라와 있고 실�
   **맞는 설명이 걸린다** — 이 상품의 검수된 사실 자체가 부정형이다("원금이 보장되지 않습니다").
   같은 절 안에서만 부정어를 찾는다.
 
-**다음 순서**
+**다음 순서** — 남은 건 전부 필수가 아니거나(P1) 지금 시점에 할 일이 아닌 항목이다
 
-1. **`GET /sessions/{id}` 스냅샷 채우기** — 계약은 "새로고침 후 `pendingQuestion`으로
-   같은 문구가 복구된다"고 적었는데 아직 빈 값을 내보낸다. **심사 중 새로고침 한 번이
-   데모를 되돌린다.** F08과 데이터 출처가 거의 같아 함께 하는 게 싸다
-2. **F08 Report + Close + Audit** — `closedAt`·`closedBy`·`unresolvedReason`을 채우는
-   경로가 아직 없다. 남은 리포지토리는 `audit_event` 하나
-3. 오프라인 평가 모듈 + Rule baseline
-
-**병행**: 프론트를 배포 백엔드에 연결 (`NEXT_PUBLIC_API_BASE_URL` +
-백엔드 `CORS_ALLOWED_ORIGINS`에 프론트 도메인 추가).
+1. §17 계약 테스트에 CI 워크플로 연결 (`.github/workflows` 신설) — 지금은 `integrationTest`
+   태스크로 로컬/수동 실행만 됨. Render 배포는 `Dockerfile -x test`라 테스트를 안 돌린다
+2. Step 6 dev set 확장(P1) 또는 Step 12 Prompt Freeze — 배포 동결 전 우선순위 낮음
+3. `docs/decisions/2026-08-20-coverage-latency-fanout.md` "Phase 6 사다리" R2 —
+   Coverage 12초 예산을 더 밟고 싶으면 여기부터(현재는 DoD가 요구 안 해서 보류)
 
 ### 데이터셋 (코드와 병행)
 
-- 상담 시나리오 **6건 모두 본문 작성 완료.** 목표는 60건
-- 실 LLM 실행 5/6 — `CONS_A_006`(장황한 상담) 미실행. 시나리오당 약 $0.03
-- 고객 답변 12 / 목표 180
+- PROD_A 상담 시나리오 **6/6 실 LLM 검증 완료.** 목표는 60건(P1, 보류 중)
+- 고객 답변 13 / 목표 180
+- PROD_B(Step 13 합성 대조군)용 sanity 시나리오 1건 별도(`CONS_B_001`, 회귀 데이터셋 아님)
 - 라벨을 먼저 정하고 상담문을 생성하는 방식. 사후 라벨링 비용이 0이다
 - `DemoSeedGateConsistencyTest`가 라벨 ↔ 기대 Gate를 `GateEvaluator`로 재계산해 대조한다 —
   60건까지 늘어나면 사람 눈으로는 유지되지 않는 검증이다
 
 ### 알려진 문제 · 미결정
 
-- ⚠️ **Coverage 레이턴시가 TRD §14 예산(12초)을 넘는다.** 예산은 **S1+S2 합계**이며
-  실측 합계 15.5~32.9초로 **한 번도 충족한 적이 없다**(classifier 10.8~23.3초).
-  타임아웃을 60초로 올려 **실패 모양만 바꿨고 근본 해결은 안 됐다.**
-  TRD §14가 대응 수단으로 부분 병렬화를 직접 명시한다.
-  프론트에 실측 33초를 전달해야 한다 (fetch 타임아웃·대기 화면 기준값)
-- ⚠️ **30초 계약 한도 초과가 이미 발생했다 (미추적).** `CONS_A_002` wall 33.2초.
-  그 상담문은 1,400자이고 계약 상한은 8,000자다
+- ⚠️ **Coverage 레이턴시가 TRD §14 예산(12초)을 넘는다** (S1+S2 합계). classifier
+  팬아웃(9개 Risk를 3배치 병렬 호출) 적용 후 합계 13.5~21.9초대로 줄었지만 여전히
+  12초는 못 채운다. **Step 5는 여기서 공식 종료됨(2026-08-26)** — DoD가 "확인 또는
+  조정"이라 12초 달성 자체를 요구하지 않는다. 프론트 대기 화면 기준값은 **26.3초**로
+  갱신됨(fetch 타임아웃 60초는 이미 여유 안이라 코드 변경 불필요)
+- **30초 계약 한도** — 팬아웃 적용 후 재측정 최댓값 26.3초로 **안전권 확인됨**
+  (2026-08-25). 이전엔 `CONS_A_002`가 33.2초로 실제 초과했었다. 다만 8,000자
+  상한(계약 최대치)이나 60개 시나리오로 늘었을 때는 아직 미검증
 - ⚠️ **`GET /sessions/{id}`·`GET /report`가 TRD §14 "비-AI API p95 300ms" 예산을
   실 배포에서 2.3~3.6배 초과한다** (2026-08-26, TRD §18 Step 9). 앱(Singapore)↔DB(Seoul)
   왕복이 쿼리당 51~80ms인데 두 엔드포인트가 Coverage·Understanding·Override·Revision·
@@ -659,8 +679,6 @@ Java 소스 118개. 인프라·데이터·API가 F07까지 올라와 있고 실�
   **예산 300ms는 여전히 미충족.** 진짜 해소는 fetch join/배치 리팩터나 컬렉션 병렬화
   (커넥션 풀 5개뿐이라 단일 사용자 P0 전제에서만 안전) 중 하나가 필요하며 착수 전이다.
   상세는 `finready-backend/CLAUDE.md`의 §14.1 절
-- **캐시 TTL을 5분 → 1시간으로 올릴지** — 심사처럼 세션이 띄엄띄엄 오면 5분 TTL은
-  매번 쓰기만 물고 읽기 혜택이 없다. 배포 전 결정
 - **`revisionNo` 채번 경쟁 상태가 남아 있다** (의도적 보류). 실패가 409
   `CONCURRENT_SESSION_UPDATE`로 나가 프론트가 재시도할 수 있게만 해뒀다
 - **`resumePoint` 매핑을 프론트 화면 정의와 대조할 것.** TRD에 규정이 없어
