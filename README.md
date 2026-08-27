@@ -110,7 +110,7 @@ finready/
 ├── docs/
 │   ├── FinReady_PRD_DEV_FREEZE_v1.3.1.pdf   제품 요구사항 (DEV FREEZE)
 │   ├── FinReady Backend TRD v1_2_3.pdf      기술 설계 — 데이터 모델·상태머신·검증 절차
-│   ├── openapi.yml                          API 계약 원본 (v1.4.4) ← 단일 원천
+│   ├── openapi.yml                          API 계약 원본 (v1.4.5) ← 단일 원천
 │   ├── backend-notes.md                     백엔드 작업 메모
 │   └── decisions/                           결정 기록 (왜 그렇게 했는지)
 │
@@ -532,7 +532,7 @@ pnpm lint             # eslint
 
 ## API 계약 운영 규칙
 
-`docs/openapi.yml`(현재 **v1.4.4**)이 단일 원천이고, **백엔드만 수정한다.**
+`docs/openapi.yml`(현재 **v1.4.5**)이 단일 원천이고, **백엔드만 수정한다.**
 
 바꿀 때 세 가지를 함께 한다.
 

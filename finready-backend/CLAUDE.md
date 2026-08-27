@@ -140,8 +140,8 @@ classifier 단독 기준으로 읽어 "충족"으로 기록해뒀는데, 판정 
 (2026-08-25) **Phase 3~5 완료** (`637f70f`). `ai/ClaudeCoverageClassifier`가 9개 Risk를
 3개씩 3배치로 나눠 가상 스레드로 동시 호출한다(`RISKS_PER_CALL=3`, `promptVersion`은
 `coverage-v3-b3`로 배치 크기까지 인코딩). 배포·실측 결과:
-- **classifier 레이턴시 43~51% 단축**, 예측(45~48%)과 일치. S1+S2 합계는 28~31% 단축
-  (verifier는 안 쪼갬)
+- **classifier 레이턴시 41~51% 단축**(시나리오당 n=3, 정수 반올림), 예측(45~48%)과 일치.
+  S1+S2 합계는 28~31% 단축(verifier는 안 쪼갬)
 - **Risk 정확도 120/135, Gate 15/15 — Phase 2와 완전 동일.** 정확도 손실 없음
 - **30초 계약 한도가 안전해졌다.** 15건 중 최댓값 26.3s(이전엔 `CONS_A_002`가 33.2s로
   초과했었음)
@@ -161,6 +161,11 @@ package-private 생성자(`ClaudeSemanticVerifier(AiGateway, Effort)`)만 추가
 1.4.3→1.4.4(스키마 변경 없음, classifier "1회 batch call" 서술 정정 +
 `analysis.classifierLatencyMs`/`promptVersion` 설명 갱신). "실측 33초" 프론트 전달값을
 26.3초로 갱신(코드 변경 불필요 — fetch 타임아웃 60초가 이미 여유 안).
+(2026-08-27) **수치 정정.** Phase 5 결과표(시나리오당 n=3)가 편차 최대 2.4배인
+표본인데 소수점 첫째 자리(`-50.6%` 등)까지 보고해 "지어낸 정밀도"였고, 그 위에 적은
+요약 범위 "43~51%"는 그 표의 실제 최솟값(40.9%)과도 안 맞았다. 정수 반올림한
+**41~51%**로 이 문서·`docs/decisions/2026-08-20-coverage-latency-fanout.md`·
+`docs/openapi.yml`(1.4.4→1.4.5, 서술만)·`README.md`를 함께 정정.
 
 **프론트 계약 사본 — 해소** (2026-08-26, 팀 결정). `finready-frontend/contracts/openapi.yml`
 사본을 되살리지 않고, 프론트가 루트 `docs/openapi.yml`을 직접 참조하는 방식으로 정리하기로
@@ -910,7 +915,7 @@ Step 13의 sanity 검증(`eval/prod_b_sanity_seed.json`의 `CONS_B_001` 1건)일
   `docs/decisions/2026-08-18-explained-constraint-null-hole.md` "해소됨"
 - **Coverage 레이턴시가 TRD §14 예산(12초)을 넘는다** — 예산은 **S1+S2 합계**다.
   (2026-08-25) **팬아웃(Step 5 Phase 3~5) 적용 후 합계 평균 13.5~21.9s로 크게 줄었으나
-  여전히 12초는 미충족.** classifier만 보면 43~51% 단축돼 예산 안쪽까지 왔지만, 안 쪼갠
+  여전히 12초는 미충족.** classifier만 보면 41~51% 단축돼 예산 안쪽까지 왔지만, 안 쪼갠
   verifier가 이제 상대적으로 더 큰 비중을 차지한다.
   (2026-08-26) **Step 5 종료 — 12초는 끝내 미충족인 채로 남는다.** Phase 6에서 verifier
   effort HIGH→MEDIUM을 시험해 정확도 리스크는 해소했지만(`CONS_A_003` R01 CONTRADICTS
