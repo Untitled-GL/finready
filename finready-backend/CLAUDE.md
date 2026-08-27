@@ -892,11 +892,15 @@ Step 13의 sanity 검증(`eval/prod_b_sanity_seed.json`의 `CONS_B_001` 1건)일
 - **캐시 TTL 결정 시 F04~F07은 고려 대상이 아니다** — 애초에 캐시가 안 걸린다(1024토큰 미만).
   TTL 논의는 Coverage 2단계에만 해당한다
 - `customerProfile` 프로덕션 시드 배치 방식 (별도 파일 vs risk schema에 병합)
-- **`resumePoint` 매핑을 프론트 화면 정의와 대조할 것.** TRD에 규정이 없다 —
-  §6.6은 Understanding 단계의 `nextAction` → 화면만 정한다.
-  현재 매핑(DRAFT→S02 / COVERAGE_ANALYZED·GATE_BLOCKED→S03 / UNDERSTANDING_IN_PROGRESS→S04 /
-  AWAITING_STAFF_REVIEW→S07 / CLOSED_*→S08)은 `SessionService.resumePointOf`에 있고
-  `SessionServiceTest`가 고정해뒀다. 프론트가 API 연결을 시작하기 전에 맞출 것
+- ~~`resumePoint` 매핑을 프론트 화면 정의와 대조할 것~~ — **해소 (2026-08-27, 대조 확인만
+  — 코드 변경 없음).** TRD에 규정이 없어(§6.6은 Understanding 단계의 `nextAction` → 화면만
+  정한다) 남아있던 항목인데, `finready-frontend/src/shared/lib/resume.ts`의 `RESUME_ROUTE`와
+  대조한 결과 이미 일치한다: DRAFT→S02(transcript) / COVERAGE_ANALYZED·GATE_BLOCKED→S03
+  (coverage) / UNDERSTANDING_IN_PROGRESS→S04(understanding, S04~S06 공유 라우트 —
+  understanding-screen.tsx가 resumePoint가 아니라 서버의 `nextAction`/`pendingQuestion`으로
+  내부 상태를 다시 판단하므로 S04만 오는 것으로 충분) / AWAITING_STAFF_REVIEW→S07(review) /
+  CLOSED_*→S08(report). 양쪽 다 테스트로 고정돼 있다 —
+  백엔드 `SessionServiceTest`, 프론트 `resume.test.ts`
 - `CoverageResult`·`SessionQuestion`에 `@Immutable`을 붙일지.
   TRD §4.2("정정 시 이전 행을 지우지 않는다")와 §4.6("멱등 발급")을 그대로 읽으면
   행 전체가 append-only다. 다만 규칙 1은 `classifier_status`·`ai_status` 두 컬럼만
