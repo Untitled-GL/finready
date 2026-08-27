@@ -8,11 +8,12 @@ import { ResultView } from "@/screens/understanding/result-view";
 import {
   useQuestions,
   useReexplain,
+  useDemoProduct,
   useSession,
   useSubmitAnswer,
   useSubmitRecheck,
 } from "@/shared/api/queries";
-import { RISK_ANSWERS } from "@/shared/constants/demo";
+import { answersForRisk } from "@/shared/lib/demo-catalog";
 import type {
   NextAction,
   ReExplanationResponse,
@@ -21,7 +22,7 @@ import type {
 import { CustomerShell } from "@/shared/ui/customer-shell";
 import { ErrorNote } from "@/shared/ui/error-note";
 import { ScreenSkeleton } from "@/shared/ui/screen-skeleton";
-import { useScenario } from "@/shared/ui/staff-shell";
+import { useScenarioQuery } from "@/shared/ui/staff-shell";
 
 /**
  * S04–S07, the customer's side of the session.
@@ -65,9 +66,9 @@ function resultKicker(result: UnderstandingResponse, total: number): string {
 
 export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
-  const scenario = useScenario();
-  const query = scenario === "safety" ? "?scenario=safety" : "";
+  const query = useScenarioQuery();
 
+  const demo = useDemoProduct();
   const questions = useQuestions(sessionId, true);
   const session = useSession(sessionId);
   const submitAnswer = useSubmitAnswer(sessionId);
@@ -109,19 +110,22 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
     if (customerDone) router.replace(`/session/${sessionId}/return${query}`);
   }, [customerDone, router, sessionId, query]);
 
-  if (questions.isError) {
+  if (demo.isError || questions.isError) {
     return (
       <CustomerShell currentIndex={1} totalCount={3}>
         <div className="mx-auto max-w-[760px] px-[40px] py-[72px]">
           <ErrorNote
-            error={questions.error}
-            onRetry={() => void questions.refetch()}
+            error={demo.error ?? questions.error}
+            onRetry={() => {
+              void demo.refetch();
+              void questions.refetch();
+            }}
           />
         </div>
       </CustomerShell>
     );
   }
-  if (!questions.data || !session.data) return <ScreenSkeleton />;
+  if (!demo.data || !questions.data || !session.data) return <ScreenSkeleton />;
   if (customerDone) return <ScreenSkeleton label="직원 화면으로 이동합니다" />;
 
   const total = questions.data.totalRiskCount ?? allQuestions.length;
@@ -132,7 +136,7 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
 
   const riskId = current.riskId as string;
   const kicker = `핵심 위험 ${current.orderIndex ?? 1} / ${total}`;
-  const samples = RISK_ANSWERS[riskId];
+  const samples = answersForRisk(demo.data.demoAnswers, riskId);
   const pending =
     submitAnswer.isPending || submitRecheck.isPending || reexplain.isPending;
 
@@ -224,7 +228,6 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
           answer={answer}
           onAnswerChange={setAnswer}
           samples={samples}
-          bucket={isRecheck ? "recheck" : "initial"}
           pending={pending}
           onSubmit={submit}
         />

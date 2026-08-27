@@ -19,6 +19,18 @@ beforeEach(() => {
   resetMockStore();
 });
 
+describe("demo product contract", () => {
+  it("returns the server-owned customer, transcript, and answer presets", async () => {
+    const demo = await api.getDemoProduct();
+
+    expect(demo.customers).toHaveLength(6);
+    expect(demo.demoPresets?.map((preset) => preset.id)).toEqual(["main", "safety"]);
+    expect(demo.demoPresets?.find((preset) => preset.id === "safety")?.supplementTranscript)
+      .toBeNull();
+    expect(demo.demoAnswers).toHaveLength(13);
+  });
+});
+
 async function newSession() {
   const session = await api.createSession({
     productId: "PROD_A",
@@ -154,6 +166,23 @@ describe("main demo coverage flow", () => {
 });
 
 describe("nextAction branching", () => {
+  it("classifies the answer preset returned by the demo endpoint with its gold label", async () => {
+    const sessionId = await readySession();
+    const demo = await api.getDemoProduct();
+    const sample = demo.demoAnswers?.find(
+      (answer) =>
+        answer.riskId === "R01" && answer.expectedLabel === "UNDERSTOOD",
+    );
+
+    const result = await api.submitAnswer(sessionId, {
+      riskId: "R01",
+      answer: sample!.answer,
+      answerSource: ANSWER_SOURCE,
+    });
+
+    expect(result.aiStatus).toBe("UNDERSTOOD");
+  });
+
   it("sends a misunderstanding to the re-explanation, then to a recheck", async () => {
     const sessionId = await readySession();
 

@@ -2,13 +2,21 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { useSession, useSubmitTranscript } from "@/shared/api/queries";
-import { SAMPLE_SUPPLEMENT, SAMPLE_TRANSCRIPT } from "@/shared/constants/demo";
+import {
+  useDemoProduct,
+  useSession,
+  useSubmitTranscript,
+} from "@/shared/api/queries";
 import { INPUT_LIMITS } from "@/shared/constants/labels";
+import { findPreset } from "@/shared/lib/demo-catalog";
 import { AnalysisOverlay } from "@/shared/ui/analysis-overlay";
 import { ErrorNote } from "@/shared/ui/error-note";
 import { ScreenSkeleton } from "@/shared/ui/screen-skeleton";
-import { StaffShell, useScenario } from "@/shared/ui/staff-shell";
+import {
+  StaffShell,
+  useScenario,
+  useScenarioQuery,
+} from "@/shared/ui/staff-shell";
 
 /**
  * S02 — the transcript boundary.
@@ -24,25 +32,36 @@ export function TranscriptScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const scenario = useScenario();
+  const query = useScenarioQuery();
+  const demo = useDemoProduct();
   const session = useSession(sessionId);
   const submit = useSubmitTranscript(sessionId);
 
   const isSupplement = params.get("mode") === "supplement";
   const [draft, setDraft] = useState("");
 
-  if (session.isError) {
+  if (demo.isError || session.isError) {
     return (
       <div className="mx-auto max-w-[1040px] px-[40px] py-[64px]">
-        <ErrorNote error={session.error} onRetry={() => void session.refetch()} />
+        <ErrorNote
+          error={demo.error ?? session.error}
+          onRetry={() => {
+            void demo.refetch();
+            void session.refetch();
+          }}
+        />
       </div>
     );
   }
-  if (!session.data) return <ScreenSkeleton />;
+  if (!demo.data || !session.data) return <ScreenSkeleton />;
 
   const existingText = session.data.currentRevision?.text ?? "";
   const currentRevision = session.data.currentRevision?.revision ?? 0;
   const nextRevision = currentRevision + 1;
-  const query = scenario === "safety" ? "?scenario=safety" : "";
+  const preset = findPreset(demo.data.demoPresets, scenario);
+  const sampleText = isSupplement
+    ? preset?.supplementTranscript
+    : preset?.transcript;
 
   // Supplementing carries the previous transcript forward — the server
   // stores whole snapshots, never appended fragments.
@@ -62,9 +81,7 @@ export function TranscriptScreen({ sessionId }: { sessionId: string }) {
   };
 
   const fillSample = () => {
-    setDraft(
-      isSupplement ? SAMPLE_SUPPLEMENT[scenario] : SAMPLE_TRANSCRIPT[scenario],
-    );
+    if (sampleText) setDraft(sampleText);
   };
 
   return (
@@ -137,14 +154,16 @@ export function TranscriptScreen({ sessionId }: { sessionId: string }) {
           >
             {isSupplement ? "보완 내용 저장하고 재분석" : "설명 충족도 분석"}
           </button>
-          <button
-            type="button"
-            onClick={fillSample}
-            disabled={submit.isPending}
-            className="rounded-[10px] border border-[oklch(0.86_0.008_260)] bg-white px-[22px] py-[14px] text-[15.5px] font-semibold hover:bg-[oklch(0.96_0.004_85)] disabled:opacity-60"
-          >
-            {isSupplement ? "샘플 보완 설명 채우기" : "샘플 상담 내용 채우기"}
-          </button>
+          {sampleText ? (
+            <button
+              type="button"
+              onClick={fillSample}
+              disabled={submit.isPending}
+              className="rounded-[10px] border border-[oklch(0.86_0.008_260)] bg-white px-[22px] py-[14px] text-[15.5px] font-semibold hover:bg-[oklch(0.96_0.004_85)] disabled:opacity-60"
+            >
+              {isSupplement ? "샘플 보완 설명 채우기" : "샘플 상담 내용 채우기"}
+            </button>
+          ) : null}
           <span className="ml-auto text-[13.5px] text-[var(--color-muted-soft)]">
             저장 시 revision {nextRevision} 생성 · 기존 내용은 수정되지 않습니다
           </span>

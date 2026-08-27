@@ -428,19 +428,32 @@ pnpm install
 pnpm dev          # http://localhost:3000
 ```
 
-**백엔드 없이 전체 흐름이 동작한다.** `NEXT_PUBLIC_API_MODE`가 없으면 인메모리
-Mock 어댑터가 붙고, S01~S08 전 구간과 두 데모 시나리오를 그대로 돌려볼 수 있다.
-
-실서버에 붙이려면:
+`NEXT_PUBLIC_API_MODE`가 없으면 인메모리 Mock 어댑터가 붙는다. 현재 로컬 개발은
+운영 Render API를 기준으로 검증하므로 `finready-frontend/.env.local`에 아래 값을 둔다.
+이 파일은 Git에 커밋되지 않는다.
 
 ```bash
-NEXT_PUBLIC_API_MODE=spring NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api pnpm dev
+NEXT_PUBLIC_API_MODE=spring
+NEXT_PUBLIC_API_BASE_URL=https://finready-backend.onrender.com/api
+```
+
+설정 후 프론트를 재시작한다.
+
+```bash
+cd finready-frontend
+pnpm dev
+```
+
+백엔드 없이 화면 흐름만 확인해야 할 때는 일회성으로 Mock을 명시한다.
+
+```bash
+NEXT_PUBLIC_API_MODE=mock pnpm dev
 ```
 
 계약이 바뀌었을 때:
 
 ```bash
-pnpm gen:api      # contracts/openapi.yml → src/shared/api/generated/openapi.ts
+pnpm gen:api      # ../docs/openapi.yml → src/shared/api/generated/openapi.ts
 pnpm typecheck    # 깨진 곳이 곧 계약 변경의 영향 범위다
 ```
 

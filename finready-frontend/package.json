@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "gen:api": "openapi-typescript contracts/openapi.yml -o src/shared/api/generated/openapi.ts",
+    "gen:api": "openapi-typescript ../docs/openapi.yml -o src/shared/api/generated/openapi.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

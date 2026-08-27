@@ -6,7 +6,7 @@ import { useSession } from "@/shared/api/queries";
 import { resumeHref } from "@/shared/lib/resume";
 import { ErrorNote } from "@/shared/ui/error-note";
 import { ScreenSkeleton } from "@/shared/ui/screen-skeleton";
-import { useScenario } from "@/shared/ui/staff-shell";
+import { useScenarioQuery } from "@/shared/ui/staff-shell";
 
 /**
  * `/session/{id}` — recovery entry point.
@@ -18,9 +18,8 @@ import { useScenario } from "@/shared/ui/staff-shell";
  */
 export function ResumeScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
-  const scenario = useScenario();
+  const query = useScenarioQuery();
   const session = useSession(sessionId);
-  const query = scenario === "safety" ? "?scenario=safety" : "";
 
   const resumePoint = session.data?.resumePoint;
 

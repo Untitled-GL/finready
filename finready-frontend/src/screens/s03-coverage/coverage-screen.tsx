@@ -12,12 +12,16 @@ import {
   useSession,
 } from "@/shared/api/queries";
 import { COVERAGE_STATUS_LABEL, DISCLAIMER } from "@/shared/constants/labels";
+import { countCoverageStatuses } from "@/shared/lib/coverage-summary";
 import type { CoverageResult } from "@/shared/types/domain";
 import { AnalysisOverlay } from "@/shared/ui/analysis-overlay";
 import { ErrorNote } from "@/shared/ui/error-note";
 import { ScreenSkeleton } from "@/shared/ui/screen-skeleton";
 import { coverageStyle, StatusDot } from "@/shared/ui/status-pill";
-import { StaffShell, useScenario } from "@/shared/ui/staff-shell";
+import {
+  StaffShell,
+  useScenarioQuery,
+} from "@/shared/ui/staff-shell";
 
 /**
  * S03 — was each product risk actually explained?
@@ -30,7 +34,8 @@ import { StaffShell, useScenario } from "@/shared/ui/staff-shell";
 export function CoverageScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const params = useSearchParams();
-  const scenario = useScenario();
+  const query = useScenarioQuery();
+  const querySuffix = useScenarioQuery("&");
   const demo = useDemoProduct();
   const session = useSession(sessionId);
   const reanalyze = useAnalyzeCoverage(sessionId);
@@ -58,7 +63,6 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
   const coverage = cachedCoverage.data ?? session.data.coverage;
   const revisionText = session.data.currentRevision?.text ?? "";
   const revision = session.data.currentRevision?.revision ?? 1;
-  const query = scenario === "safety" ? "?scenario=safety" : "";
   const risks = demo.data.risks ?? [];
 
   // The session status tells us whether analysis has already happened, even
@@ -181,35 +185,15 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                 확인했습니다.
               </p>
             </div>
-            <p className="shrink-0 text-[13.5px] text-[var(--color-muted)]">
-              {summarise(results)}
-            </p>
           </div>
 
           <GateBanner
             blocked={!canProceed}
             withOverride={withOverride}
-            blockingLabels={blocking.map(
-              (id) =>
-                `${id} ${riskLabels[id] ?? ""} · ${
-                  COVERAGE_STATUS_LABEL[
-                    results.find((r) => r.riskId === id)!.coverageStatus
-                  ]
-                }`,
-            )}
+            results={results}
             targetCount={
               (session.data.understanding ?? []).length ||
               risks.filter((r) => r.understandingCheck).length
-            }
-            onSupplement={() =>
-              router.push(
-                `/session/${sessionId}/transcript?mode=supplement${
-                  scenario === "safety" ? "&scenario=safety" : ""
-                }`,
-              )
-            }
-            onStartUnderstanding={() =>
-              router.push(`/session/${sessionId}/handoff${query}`)
             }
           />
 
@@ -293,9 +277,7 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                       type="button"
                       onClick={() =>
                         router.push(
-                          `/session/${sessionId}/transcript?mode=supplement${
-                            scenario === "safety" ? "&scenario=safety" : ""
-                          }`,
+                          `/session/${sessionId}/transcript?mode=supplement${querySuffix}`,
                         )
                       }
                       className="rounded-[10px] bg-[var(--color-accent)] px-[28px] py-[14px] text-[15.5px] font-semibold text-white hover:bg-[var(--color-accent-hover)]"
@@ -344,32 +326,16 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
   );
 }
 
-function summarise(results: CoverageResult[]): string {
-  const counts = new Map<string, number>();
-  for (const r of results) {
-    counts.set(r.coverageStatus, (counts.get(r.coverageStatus) ?? 0) + 1);
-  }
-  const order = ["EXPLAINED", "INSUFFICIENT", "NOT_FOUND", "CONTRADICTED"] as const;
-  return order
-    .filter((status) => counts.get(status))
-    .map((status) => `${COVERAGE_STATUS_LABEL[status]} ${counts.get(status)}`)
-    .join(" · ");
-}
-
 function GateBanner({
   blocked,
   withOverride,
-  blockingLabels,
+  results,
   targetCount,
-  onSupplement,
-  onStartUnderstanding,
 }: {
   blocked: boolean;
   withOverride: boolean;
-  blockingLabels: string[];
+  results: CoverageResult[];
   targetCount: number;
-  onSupplement: () => void;
-  onStartUnderstanding: () => void;
 }) {
   if (blocked) {
     return (
@@ -380,21 +346,15 @@ function GateBanner({
         >
           !
         </span>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <p className="text-[16.5px] leading-[1.5] font-semibold">
             고객 이해확인을 진행하기 전에 확인이 필요한 설명 항목이 있습니다.
           </p>
-          <p className="mt-[6px] text-[14.5px] text-[var(--color-block-body)]">
-            {blockingLabels.join("   ·   ")}
+          <CoverageCountSummary results={results} />
+          <p className="mt-[12px] text-[13.5px] text-[var(--color-block-body)]">
+            아래 상품 위험 목록에서 상태와 근거를 확인한 뒤 필요한 설명을 보완해주세요.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onSupplement}
-          className="flex-none rounded-[9px] bg-[var(--color-accent)] px-[20px] py-[11px] text-[14.5px] font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-        >
-          보완 설명 입력
-        </button>
       </div>
     );
   }
@@ -445,14 +405,37 @@ function GateBanner({
             ? "AI 판정은 변경되지 않았고 리포트에 그대로 남습니다"
             : `이해확인 대상 ${targetCount}건 · 차단 항목 없음`}
         </p>
+        <CoverageCountSummary results={results} />
       </div>
-      <button
-        type="button"
-        onClick={onStartUnderstanding}
-        className="flex-none rounded-[9px] bg-[var(--color-accent)] px-[20px] py-[11px] text-[14.5px] font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-      >
-        고객 이해확인 시작
-      </button>
     </div>
+  );
+}
+
+const COVERAGE_STATUS_ORDER = [
+  "EXPLAINED",
+  "INSUFFICIENT",
+  "NOT_FOUND",
+  "CONTRADICTED",
+] as const;
+
+function CoverageCountSummary({ results }: { results: CoverageResult[] }) {
+  const counts = countCoverageStatuses(results);
+
+  return (
+    <dl className="mt-[14px] grid grid-cols-2 gap-x-[28px] gap-y-[10px] sm:grid-cols-4">
+      {COVERAGE_STATUS_ORDER.map((status) => {
+        const style = coverageStyle(status);
+        return (
+          <div key={status} className="border-l-2 pl-[10px]" style={{ borderColor: style.dotColor }}>
+            <dt className="text-[12.5px] text-[var(--color-muted)]">
+              {COVERAGE_STATUS_LABEL[status]}
+            </dt>
+            <dd className="mt-[2px] text-[16px] font-semibold text-[var(--color-ink)]">
+              {counts[status]}건
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
   );
 }

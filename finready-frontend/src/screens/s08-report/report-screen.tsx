@@ -18,7 +18,7 @@ import type {
 } from "@/shared/types/domain";
 import { ErrorNote } from "@/shared/ui/error-note";
 import { ScreenSkeleton } from "@/shared/ui/screen-skeleton";
-import { StaffShell, useScenario } from "@/shared/ui/staff-shell";
+import { StaffShell, useScenarioQuery } from "@/shared/ui/staff-shell";
 import { coverageStyle, StatusDot, understandingStyle } from "@/shared/ui/status-pill";
 
 /**
@@ -33,7 +33,7 @@ import { coverageStyle, StatusDot, understandingStyle } from "@/shared/ui/status
  */
 export function ReportScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
-  const scenario = useScenario();
+  const querySuffix = useScenarioQuery("&");
   const report = useReport(sessionId);
   const close = useCloseSession(sessionId);
 
@@ -173,9 +173,7 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
                   closed={closed}
                   onReview={() =>
                     router.push(
-                      `/session/${sessionId}/review?risk=${state.riskId}${
-                        scenario === "safety" ? "&scenario=safety" : ""
-                      }`,
+                      `/session/${sessionId}/review?risk=${state.riskId}${querySuffix}`,
                     )
                   }
                 />

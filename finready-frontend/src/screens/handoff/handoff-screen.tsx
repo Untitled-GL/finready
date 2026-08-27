@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/shared/api";
 import { useMutation } from "@tanstack/react-query";
 import { ErrorNote } from "@/shared/ui/error-note";
-import { useScenario } from "@/shared/ui/staff-shell";
+import { useScenarioQuery } from "@/shared/ui/staff-shell";
 
 /**
  * The staff → customer hand-off.
@@ -16,8 +16,7 @@ import { useScenario } from "@/shared/ui/staff-shell";
  */
 export function HandoffScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
-  const scenario = useScenario();
-  const query = scenario === "safety" ? "?scenario=safety" : "";
+  const query = useScenarioQuery();
 
   // Asking the server for the question set is what actually proves the gate
   // is open — it answers 409 GATE_NOT_OPEN otherwise.

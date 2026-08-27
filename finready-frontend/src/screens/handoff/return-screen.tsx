@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "@/shared/api/queries";
-import { useScenario } from "@/shared/ui/staff-shell";
+import { useScenarioQuery } from "@/shared/ui/staff-shell";
 
 /**
  * The customer → staff hand-back.
@@ -14,9 +14,9 @@ import { useScenario } from "@/shared/ui/staff-shell";
  */
 export function ReturnScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
-  const scenario = useScenario();
+  const query = useScenarioQuery();
+  const querySuffix = useScenarioQuery("&");
   const session = useSession(sessionId);
-  const query = scenario === "safety" ? "?scenario=safety" : "";
 
   // If the AI could not settle a risk, the staff member's next stop is that
   // risk, not the report. The server's workflowStatus says which.
@@ -24,9 +24,7 @@ export function ReturnScreen({ sessionId }: { sessionId: string }) {
     (s) => s.workflowStatus === "MANUAL_REVIEW_REQUIRED",
   );
   const destination = pendingReview
-    ? `/session/${sessionId}/review?risk=${pendingReview.riskId}${
-        scenario === "safety" ? "&scenario=safety" : ""
-      }`
+    ? `/session/${sessionId}/review?risk=${pendingReview.riskId}${querySuffix}`
     : `/session/${sessionId}/report${query}`;
 
   return (

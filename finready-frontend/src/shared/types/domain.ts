@@ -4,9 +4,9 @@ import type { components, operations } from "@/shared/api/generated/openapi";
  * Domain vocabulary for the app, aliased straight off the generated
  * OpenAPI types.
  *
- * There are no hand-written shapes here on purpose: `contracts/openapi.yml`
- * (v1.4.1) is the contract, `pnpm gen:api` regenerates from it, and this
- * file only gives the generated schemas readable names. If the backend
+ * There are no hand-written shapes here on purpose: `../docs/openapi.yml`
+ * (v1.4.4) is the contract, `pnpm gen:api` regenerates from it, and this file
+ * only gives the generated schemas readable names. If the backend
  * changes a field, typecheck breaks here rather than at runtime.
  *
  * Two invariants the contract encodes and the UI must preserve:
@@ -44,6 +44,8 @@ export type ResumePoint = Schemas["ResumePoint"];
 /* ── entities ────────────────────────────────────────────────────── */
 
 export type DemoProductResponse = Schemas["DemoProductResponse"];
+export type DemoPreset = Schemas["DemoPreset"];
+export type DemoAnswer = Schemas["DemoAnswer"];
 export type ProductRisk = Schemas["ProductRisk"];
 export type CustomerProfile = Schemas["CustomerProfile"];
 export type SessionResponse = Schemas["SessionResponse"];

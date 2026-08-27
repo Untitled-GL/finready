@@ -102,8 +102,9 @@ export interface paths {
         put?: never;
         /**
          * F03 - Coverage 4상태 분석 및 Gate 판정
-         * @description `coveragePolicy != NOT_APPLICABLE`인 Risk 전체를 1회 batch call로 분류한 뒤,
-         *     GATE_REQUIRED Risk와 CONTRADICTED 후보에 대해 Evidence Semantic Verifier를
+         * @description `coveragePolicy != NOT_APPLICABLE`인 Risk 전체를 분류한 뒤(내부적으로 여러 배치로
+         *     나눠 병렬 호출할 수 있다 — 호출 횟수는 구현 세부사항이며 계약이 보장하는 것은
+         *     아니다), GATE_REQUIRED Risk와 CONTRADICTED 후보에 대해 Evidence Semantic Verifier를
          *     1회 batch call로 재검증한다.
          *
          *     **coverageStatus 결정 규칙 (PRD §7.4 / TRD §8.5)**
@@ -493,6 +494,41 @@ export interface components {
              */
             understandingCheckRiskIds?: string[];
             customers: components["schemas"]["CustomerProfile"][];
+            /**
+             * @description 데모 상담문 preset (TRD §18 Step 11). 서버가 원문을 갖는다.
+             *     값은 평가 데이터셋의 상담문과 동일하므로, 데모에서 보이는 판정 결과가
+             *     곧 정확도를 실측한 그 상담문의 결과다.
+             */
+            demoPresets?: components["schemas"]["DemoPreset"][];
+            /** @description S04 고객 답변 채우기 원문. 한 riskId에 라벨별로 여러 건이 온다. */
+            demoAnswers?: components["schemas"]["DemoAnswer"][];
+        };
+        DemoPreset: {
+            /**
+             * @example main
+             * @example safety
+             */
+            id: string;
+            /** @example 대표 데모 - 조기상환 조건 누락 + 원금보장 오해 유발 */
+            label: string;
+            /** @description S02 상담 내용 채우기 원문. */
+            transcript: string;
+            /**
+             * @description 보완 설명 채우기 원문. **null일 수 있다** - 채점된 보완문이 있는 시나리오만 갖는다.
+             *     null이면 보완 채우기를 노출하지 않는다. 없는 자리를 지어낸 문장으로 메우면
+             *     데모가 측정 밖으로 나간다.
+             */
+            supplementTranscript?: string | null;
+        };
+        DemoAnswer: {
+            /** @example R01 */
+            riskId: string;
+            /**
+             * @description 이 답변에 대해 사람이 붙인 gold label. 정답/오해/애매 채우기 버튼을
+             *     가르는 값이며, 서버 판정 결과가 아니다.
+             */
+            expectedLabel: components["schemas"]["UnderstandingStatus"];
+            answer: string;
         };
         ProductRisk: {
             /** @example R01 */
@@ -574,9 +610,17 @@ export interface components {
             risks: components["schemas"]["CoverageResult"][];
             /** @description 성능·재현 관측용. 화면 표시 의무는 없으며 고객 View에는 렌더링하지 않는다. */
             analysis?: {
+                /**
+                 * @description classifier 단계 전체의 벽시계(wall clock)다. 내부적으로 여러 배치를
+                 *     병렬 호출하는 경우 단일 호출 레이턴시가 아니라 가장 늦게 끝난 배치
+                 *     기준 + 팬아웃 오버헤드다.
+                 */
                 classifierLatencyMs?: number;
                 verifierLatencyMs?: number;
-                /** @example coverage-v3 */
+                /**
+                 * @description classifier와 verifier 버전을 `+`로 이어붙인 문자열.
+                 * @example coverage-v3-b3+verifier-v3-high
+                 */
                 promptVersion?: string;
                 /** @description AMBIGUOUS로 인해 재요청한 Risk 수 (TRD §8.4) */
                 ambiguityRetryCount?: number;

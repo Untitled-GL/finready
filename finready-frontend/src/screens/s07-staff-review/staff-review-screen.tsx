@@ -11,7 +11,7 @@ import { decideNextAction } from "@/shared/lib/resume";
 import type { StaffDisposition } from "@/shared/types/domain";
 import { ErrorNote } from "@/shared/ui/error-note";
 import { ScreenSkeleton } from "@/shared/ui/screen-skeleton";
-import { StaffShell, useScenario } from "@/shared/ui/staff-shell";
+import { StaffShell, useScenarioQuery } from "@/shared/ui/staff-shell";
 import { understandingStyle } from "@/shared/ui/status-pill";
 
 /**
@@ -25,14 +25,12 @@ import { understandingStyle } from "@/shared/ui/status-pill";
 export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const params = useSearchParams();
-  const scenario = useScenario();
+  const query = useScenarioQuery();
   const session = useSession(sessionId);
   const resolve = useResolveByStaff(sessionId);
   const [reason, setReason] = useState("");
   /** Set when the resolution saved but the server gave us no resume point. */
   const [routeUnknown, setRouteUnknown] = useState(false);
-
-  const query = scenario === "safety" ? "?scenario=safety" : "";
 
   if (session.isError) {
     return (

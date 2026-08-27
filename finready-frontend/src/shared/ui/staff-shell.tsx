@@ -1,8 +1,12 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useDemoProduct } from "@/shared/api/queries";
-import type { ScenarioId } from "@/shared/constants/demo";
+import { useDemoProduct, useSession } from "@/shared/api/queries";
+import {
+  findCustomer,
+  findPreset,
+  scenarioSearch,
+} from "@/shared/lib/demo-catalog";
 
 /**
  * Staff-side chrome: identity of the session under review, which revision
@@ -45,26 +49,14 @@ const STEP_ROUTE: Partial<Record<StepId, string>> = {
   s08: "report",
 };
 
-const SCENARIO_TAG: Record<ScenarioId, { label: string; className: string }> = {
-  main: {
-    label: "대표 데모",
-    className: "bg-[var(--color-accent-soft)] text-[var(--color-accent)]",
-  },
-  safety: {
-    label: "예외 시나리오",
-    className: "bg-[var(--color-none-bg)] text-[var(--color-none-fg)]",
-  },
-};
-
-export function useScenario(): ScenarioId {
+export function useScenario(): string | null {
   const params = useSearchParams();
-  return params.get("scenario") === "safety" ? "safety" : "main";
+  return params.get("scenario");
 }
 
 /** Preserves the demo scenario across in-flow navigation. */
-export function useScenarioQuery(): string {
-  const scenario = useScenario();
-  return scenario === "safety" ? "?scenario=safety" : "";
+export function useScenarioQuery(prefix: "?" | "&" = "?"): string {
+  return scenarioSearch(useScenario(), prefix);
 }
 
 export function StaffShell({
@@ -82,11 +74,13 @@ export function StaffShell({
   const router = useRouter();
   const scenario = useScenario();
   const demo = useDemoProduct();
-  const query = scenario === "safety" ? "?scenario=safety" : "";
-  const tag = SCENARIO_TAG[scenario];
+  const session = useSession(sessionId);
+  const query = scenarioSearch(scenario);
 
   const productName = demo.data?.product?.name ?? "";
-  const customerLabel = demo.data?.customers?.[0]?.label ?? "";
+  const customerLabel =
+    findCustomer(demo.data?.customers, session.data?.customerId)?.label ?? "";
+  const preset = findPreset(demo.data?.demoPresets, scenario);
   const currentIndex = STEPS.findIndex((s) => s.id === current);
 
   return (
@@ -113,9 +107,10 @@ export function StaffShell({
 
           <div className="flex items-center gap-[14px]">
             <span
-              className={`rounded-full px-[10px] py-[4px] text-[12px] font-semibold ${tag.className}`}
+              className="max-w-[320px] truncate rounded-full bg-[var(--color-accent-soft)] px-[10px] py-[4px] text-[12px] font-semibold text-[var(--color-accent)]"
+              title={preset?.label}
             >
-              {tag.label}
+              {preset?.label ?? "데모 상담"}
             </span>
             <button
               type="button"

@@ -3,6 +3,10 @@ import { evaluateGate, runCoverage } from "@/shared/api/mock/coverage-engine";
 import { SAMPLE_ANSWER_STATUS } from "@/shared/api/mock/fixtures/demo-scenario";
 import { RISK_ANSWERS, type SampleAnswerKind } from "@/shared/constants/demo";
 import {
+  DEMO_ANSWERS,
+  DEMO_PRESETS,
+} from "@/shared/api/mock/fixtures/demo-presets";
+import {
   CUSTOMERS,
   PRODUCT_A,
   PRODUCT_A_RISKS,
@@ -431,6 +435,16 @@ function classifyAnswer(
 ): { aiStatus: UnderstandingAIStatus; reason: string } {
   const fixture = RISK_ANSWERS[riskId];
   const trimmed = answer.trim();
+  const serverSample = DEMO_ANSWERS.find(
+    (sample) => sample.riskId === riskId && sample.answer === trimmed,
+  );
+
+  if (serverSample) {
+    return {
+      aiStatus: serverSample.expectedLabel,
+      reason: reasonFor(riskId, serverSample.expectedLabel),
+    };
+  }
 
   if (fixture) {
     for (const bucket of ["initial", "recheck"] as const) {
@@ -601,6 +615,8 @@ export class MockFinReadyApi implements FinReadyApi {
       risks: PRODUCT_A_RISKS,
       understandingCheckRiskIds: UNDERSTANDING_CHECK_RISK_IDS,
       customers: CUSTOMERS,
+      demoPresets: DEMO_PRESETS,
+      demoAnswers: DEMO_ANSWERS,
     };
   }
 

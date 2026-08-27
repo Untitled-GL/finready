@@ -1,9 +1,7 @@
 "use client";
 
 import { INPUT_LIMITS } from "@/shared/constants/labels";
-import type { RiskAnswerFixture, SampleAnswerKind } from "@/shared/constants/demo";
-
-const SAMPLE_ORDER: SampleAnswerKind[] = ["correct", "wrong", "vague"];
+import type { DemoAnswer } from "@/shared/types/domain";
 
 /**
  * The customer's answer box, used for both the first question and the
@@ -20,7 +18,6 @@ export function AnswerForm({
   answer,
   onAnswerChange,
   samples,
-  bucket,
   pending,
   onSubmit,
 }: {
@@ -29,8 +26,7 @@ export function AnswerForm({
   note: string;
   answer: string;
   onAnswerChange: (value: string) => void;
-  samples: RiskAnswerFixture | undefined;
-  bucket: "initial" | "recheck";
+  samples: DemoAnswer[];
   pending: boolean;
   onSubmit: () => void;
 }) {
@@ -60,18 +56,18 @@ export function AnswerForm({
           className="mt-[32px] block min-h-[150px] w-full resize-y rounded-[16px] border border-[var(--color-cust-line-soft)] bg-white px-[26px] py-[24px] text-[17px] leading-[1.75]"
         />
 
-        {samples ? (
+        {samples.length > 0 ? (
           <>
             <p className="mt-[26px] mb-[10px] text-[13px] font-semibold text-[var(--color-cust-muted-soft)]">
               데모용 샘플 답변
             </p>
             <div className="flex flex-col gap-[8px]">
-              {SAMPLE_ORDER.map((kind) => {
-                const text = samples[bucket][kind];
+              {samples.map((sample, index) => {
+                const text = sample.answer;
                 const on = answer === text;
                 return (
                   <button
-                    key={kind}
+                    key={`${sample.expectedLabel}-${index}`}
                     type="button"
                     onClick={() => onAnswerChange(text)}
                     className="block w-full rounded-[12px] border bg-white px-[18px] py-[14px] text-left text-[15.5px] leading-[1.6] text-[oklch(0.3_0.012_75)]"

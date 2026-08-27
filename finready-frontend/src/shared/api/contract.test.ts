@@ -12,13 +12,13 @@ import { SpringFinReadyApi } from "@/shared/api/spring/spring-api";
  */
 
 const spec = readFileSync(
-  new URL("../../../contracts/openapi.yml", import.meta.url),
+  new URL("../../../../docs/openapi.yml", import.meta.url),
   "utf8",
 );
 
 describe("openapi contract", () => {
   it("is the version this client was written against", () => {
-    expect(spec).toContain("version: 1.4.2");
+    expect(spec).toContain("version: 1.4.4");
   });
 
   it("declares the fields the server-driven flow depends on", () => {
@@ -36,6 +36,10 @@ describe("openapi contract", () => {
       "provenanceFailureReason:",
       "classifierStatus:",
       "coverageStatus:",
+      "demoPresets:",
+      "demoAnswers:",
+      "DemoPreset:",
+      "DemoAnswer:",
     ]) {
       expect(spec).toContain(field);
     }

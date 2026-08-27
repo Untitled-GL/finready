@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCreateSession, useDemoProduct } from "@/shared/api/queries";
-import type { ScenarioId } from "@/shared/constants/demo";
 import { DISCLAIMER } from "@/shared/constants/labels";
+import { scenarioSearch } from "@/shared/lib/demo-catalog";
 import { ErrorNote } from "@/shared/ui/error-note";
 
 const PILLARS = [
@@ -30,21 +30,28 @@ export function LandingScreen() {
   const router = useRouter();
   const demo = useDemoProduct();
   const createSession = useCreateSession();
-  const [pending, setPending] = useState<ScenarioId | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedScenarioId, setSelectedScenarioId] = useState("");
+  const [pending, setPending] = useState<string | null>(null);
 
-  const start = (scenario: ScenarioId) => {
+  const customers = demo.data?.customers ?? [];
+  const presets = demo.data?.demoPresets ?? [];
+  const customerId = selectedCustomerId || customers[0]?.id || "";
+  const scenarioId = selectedScenarioId || presets[0]?.id || "";
+
+  const start = () => {
     if (createSession.isPending) return;
     const productId = demo.data?.product?.id;
-    const customerId = demo.data?.customers?.[0]?.id;
-    if (!productId || !customerId) return;
+    if (!productId || !customerId || !scenarioId) return;
 
-    setPending(scenario);
+    setPending(scenarioId);
     createSession.mutate(
       { productId, customerId },
       {
         onSuccess: (session) => {
-          const query = scenario === "safety" ? "?scenario=safety" : "";
-          router.push(`/session/${session.sessionId}/prepare${query}`);
+          router.push(
+            `/session/${session.sessionId}/prepare${scenarioSearch(scenarioId)}`,
+          );
         },
         onError: () => setPending(null),
       },
@@ -52,7 +59,11 @@ export function LandingScreen() {
   };
 
   // The demo product must be loaded before a session can name its ids.
-  const busy = createSession.isPending || demo.isLoading;
+  const busy =
+    createSession.isPending ||
+    demo.isLoading ||
+    !customerId ||
+    !scenarioId;
 
   return (
     <div className="screen-in">
@@ -82,42 +93,69 @@ export function LandingScreen() {
           확인하는 AI.
         </p>
 
-        <div className="mt-[48px] flex items-center gap-[24px]">
+        <section className="mt-[48px] grid max-w-[960px] gap-[24px] border-y border-[var(--color-line)] py-[28px] md:grid-cols-2">
+          <label className="block">
+            <span className="mb-[9px] block text-[13px] font-semibold text-[var(--color-ink-muted)]">
+              고객 유형
+            </span>
+            <select
+              value={customerId}
+              onChange={(event) => setSelectedCustomerId(event.target.value)}
+              disabled={demo.isLoading || customers.length === 0}
+              className="block h-[48px] w-full rounded-[10px] border border-[var(--color-line)] bg-white px-[14px] text-[15px] text-[var(--color-ink)] focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-accent)] disabled:opacity-60"
+            >
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-[9px] block text-[13px] font-semibold text-[var(--color-ink-muted)]">
+              상담 시나리오
+            </span>
+            <select
+              value={scenarioId}
+              onChange={(event) => setSelectedScenarioId(event.target.value)}
+              disabled={demo.isLoading || presets.length === 0}
+              className="block h-[48px] w-full rounded-[10px] border border-[var(--color-line)] bg-white px-[14px] text-[15px] text-[var(--color-ink)] focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-accent)] disabled:opacity-60"
+            >
+              {presets.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+
+        <div className="mt-[28px] flex items-center gap-[24px]">
           <button
             type="button"
-            onClick={() => start("main")}
+            onClick={start}
             disabled={busy}
             className="rounded-[11px] bg-[var(--color-accent)] px-[30px] py-[15px] text-[16px] font-semibold text-white hover:bg-[var(--color-accent-hover)] disabled:bg-[var(--color-accent-disabled)]"
           >
-            {pending === "main" ? "세션 준비 중…" : "대표 데모 시작"}
+            {pending === scenarioId ? "세션 준비 중…" : "선택한 데모 시작"}
           </button>
           <span className="text-[14px] text-[var(--color-muted)]">
-            Product A · 약 3분
+            {demo.data?.product?.name ?? "데모 상품"} · 약 3분
           </span>
         </div>
-
-        <button
-          type="button"
-          onClick={() => start("safety")}
-          disabled={busy}
-          className="mt-[22px] block px-[2px] py-[4px] text-[14px] text-[var(--color-muted-soft)] underline underline-offset-[3px] hover:text-[var(--color-ink-body)] disabled:opacity-60"
-        >
-          {pending === "safety"
-            ? "세션 준비 중…"
-            : "예외 시나리오: 설명이 사실과 달랐던 상담 보기"}
-        </button>
 
         {createSession.isError || demo.isError ? (
           <ErrorNote
             className="mt-[20px] max-w-[620px]"
             error={createSession.error ?? demo.error}
             onRetry={() =>
-              demo.isError ? demo.refetch() : start(pending ?? "main")
+              demo.isError ? demo.refetch() : start()
             }
           />
         ) : null}
 
-        <div className="mt-[104px] grid grid-cols-4 border-t border-[var(--color-line)] pt-[28px]">
+        <div className="mt-[80px] grid grid-cols-2 gap-y-[28px] border-t border-[var(--color-line)] pt-[28px] md:grid-cols-4">
           {PILLARS.map((pillar, index) => (
             <div
               key={pillar.title}

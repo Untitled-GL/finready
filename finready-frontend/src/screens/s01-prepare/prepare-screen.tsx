@@ -2,16 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useDemoProduct, useSession } from "@/shared/api/queries";
-import type { ScenarioId } from "@/shared/constants/demo";
+import { findCustomer, findPreset } from "@/shared/lib/demo-catalog";
 import type { CustomerProfile } from "@/shared/types/domain";
 import { ErrorNote } from "@/shared/ui/error-note";
 import { ScreenSkeleton } from "@/shared/ui/screen-skeleton";
-import { StaffShell, useScenario } from "@/shared/ui/staff-shell";
-
-const SCENARIO_NOTE: Record<ScenarioId, string> = {
-  main: "샘플 상담 내용을 불러와 바로 분석할 수 있습니다.",
-  safety: "설명이 사실과 달랐던 상담 기록으로 진행합니다.",
-};
+import {
+  StaffShell,
+  useScenario,
+  useScenarioQuery,
+} from "@/shared/ui/staff-shell";
 
 const INVESTMENT_EXPERIENCE_LABEL: Record<string, string> = {
   LOW: "투자 경험 적음",
@@ -50,6 +49,7 @@ function customerProfileLine(customer: CustomerProfile | undefined): string {
 export function PrepareScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const scenario = useScenario();
+  const query = useScenarioQuery();
   const demo = useDemoProduct();
   const session = useSession(sessionId);
 
@@ -70,10 +70,10 @@ export function PrepareScreen({ sessionId }: { sessionId: string }) {
   if (!demo.data || !session.data) return <ScreenSkeleton />;
 
   const product = demo.data.product;
-  const customer = demo.data.customers?.[0];
+  const customer = findCustomer(demo.data.customers, session.data.customerId);
+  const preset = findPreset(demo.data.demoPresets, scenario);
   const risks = demo.data.risks ?? [];
   const understandingTargets = risks.filter((r) => r.understandingCheck);
-  const query = scenario === "safety" ? "?scenario=safety" : "";
 
   return (
     <StaffShell
@@ -101,7 +101,7 @@ export function PrepareScreen({ sessionId }: { sessionId: string }) {
               {product?.name}
             </h3>
             <span className="rounded-[6px] bg-[var(--color-accent-soft)] px-[9px] py-[4px] text-[12.5px] font-semibold text-[var(--color-accent)]">
-              Product A
+              {product?.id}
             </span>
           </div>
           {product?.archetype === "NO_KNOCK_IN_STEP_DOWN" ? (
@@ -155,7 +155,7 @@ export function PrepareScreen({ sessionId }: { sessionId: string }) {
             상담 시작
           </button>
           <span className="text-[13.5px] text-[var(--color-muted-soft)]">
-            {SCENARIO_NOTE[scenario]}
+            {preset?.label ?? "서버에서 제공한 상담 내용을 사용합니다."}
           </span>
         </div>
       </div>
