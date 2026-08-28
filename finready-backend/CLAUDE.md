@@ -537,7 +537,7 @@ Hibernate가 실제 SQL을 만들어야 확인되므로, `@WebMvcTest` 쪽은 "�
   멱등성이 두 곳이 된다(TRD §4.2·§4.6)
   · 직원 처리는 `ai_status`를 건드리지 않는다(규칙 1). `StaffResolutionHandling` 테스트가
   `resultRepository.save`가 호출되지 않음을 고정한다
-  · 신규 테스트 38건 (Guardrail 15 / ReExplanation 12 / F07 11). 전체 268 + 18 통과 (2026-08-19)
+  · 신규 테스트 45건 (Guardrail 22 / ReExplanation 12 / F07 11). 전체 268 + 18 통과 (2026-08-19)
 - **F08 리포트 + 종료 + 감사** — `GET /sessions/{id}/report`, `POST /sessions/{id}/close`.
   · `audit/` 신설 — `AuditEventType`(9값) / `AuditEntry` / `AuditRecorder` / `AuditEventRepository`.
   기록 지점 9개: 세션 생성·revision 저장·Coverage 분석·Gate Override·질문 발급·답변 판정·

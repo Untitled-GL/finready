@@ -3,9 +3,14 @@
 | | |
 |---|---|
 | **발견** | 2026-08-14, 테스트 전략 논의 중 |
-| **상태** | **수정 보류 (의도적)** |
+| **상태** | **수정 보류 (의도적)** — 단 실패 모양은 2026-08-18에 (1)안 적용, 아래 각주 참조 |
 | **영향 범위** | `POST /api/sessions/{sessionId}/revisions` |
 | **재검토 시점** | P0 데모 범위를 벗어날 때 / 동시 사용자가 생길 때 |
+
+> **(2026-08-18) (1)안 적용.** 경쟁 자체는 그대로 두고 실패의 모양만 고쳤다 —
+> `uq_revision` 위반이 500 `INTERNAL_ERROR`(재시도 불가)로 나가던 것을 409
+> `CONCURRENT_SESSION_UPDATE`(recoverable)로 바꿨다. `RevisionConcurrencyIntegrationTest`가
+> 실 Postgres로 재현한다. 상세는 `finready-backend/CLAUDE.md`.
 
 ---
 

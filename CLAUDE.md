@@ -23,10 +23,9 @@ finready/
 ├── docs/
 │   ├── FinReady_PRD_DEV_FREEZE_v1.3.1.pdf
 │   ├── FinReady Backend TRD v1_2_3.pdf
-│   └── openapi.yml                    ← API 계약 원본 (v1.4.2)
+│   └── openapi.yml                    ← API 계약 원본 (v1.4.6)
 ├── finready-backend/                  ← Spring Boot. CLAUDE.md 별도
 └── finready-frontend/                 ← Next.js. 프론트 담당자 영역
-    └── contracts/openapi.yml          ← 계약 사본
 ```
 
 ## 문서 우선순위
@@ -35,7 +34,7 @@ finready/
 
 - PRD v1.3.1 — 제품 요구사항. DEV FREEZE 상태
 - Backend TRD v1.2.3 — 기술 결정. 데이터 모델·상태머신·검증 절차
-- `docs/openapi.yml` v1.4.2 — API 계약
+- `docs/openapi.yml` v1.4.6 — API 계약
 
 **작업 전에 TRD의 해당 절을 먼저 읽을 것.** 특히 §4(데이터 모델), §6(Enum 계약),
 §8(Evidence 검증)은 값 하나가 어긋나면 세 문서 대조에서 걸린다.
@@ -51,8 +50,9 @@ finready/
 - `description`의 변경 이력 블록에 요약을 적는다
 - 커밋 메시지 앞에 `contract:`를 붙인다
 
-**`finready-frontend/contracts/openapi.yml`은 사본이다.** 현재 v1.4.1로 원본(v1.4.2)보다
-뒤처져 있다. 원본을 고쳤으면 사본 동기화까지가 한 작업이다.
+**사본을 두지 않는다** (2026-08-26, 팀 결정). `finready-frontend/contracts/openapi.yml`
+사본은 삭제됐고 되살리지 않는다. 프론트는 루트 `docs/openapi.yml`을 직접 참조한다 —
+사본이 갈라질 걱정 자체가 없다.
 
 ## 커밋 컨벤션
 
