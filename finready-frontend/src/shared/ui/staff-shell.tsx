@@ -100,8 +100,8 @@ export function StaffShell({
               {productName}
               {customerLabel ? ` · ${customerLabel}` : ""}
             </span>
-            <span className="rounded-[6px] border border-[var(--color-line)] px-[7px] py-[3px] font-mono text-[11px] font-semibold text-[var(--color-muted)]">
-              rev.{Math.max(revision, 1)}
+            <span className="rounded-[6px] border border-[var(--color-line)] px-[7px] py-[3px] text-[11.5px] font-semibold text-[var(--color-muted)]">
+              {Math.max(revision, 1)}차 기록
             </span>
           </div>
 

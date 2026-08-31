@@ -84,3 +84,33 @@ export const ANALYSIS_STAGES = [
   "위험 항목 비교",
   "결과 정리",
 ] as const;
+
+/**
+ * `AuditEventType`(백엔드 `audit/AuditEventType.java`)의 한글 표기.
+ *
+ * 계약상 `eventType`은 자유 문자열이라(값이 늘어나도 프론트가 깨지지 않게) 이
+ * 맵에 없는 값이 와도 원문 그대로 보여준다 — {@link auditEventLabel} 사용.
+ */
+export const AUDIT_EVENT_LABEL: Record<string, string> = {
+  SESSION_CREATED: "상담 세션 생성",
+  REVISION_SAVED: "상담 내용 저장",
+  COVERAGE_ANALYZED: "설명 충족도 분석",
+  GATE_OVERRIDE_APPLIED: "직원 판단으로 진행 처리",
+  QUESTIONS_ISSUED: "고객 확인 질문 발급",
+  ANSWER_JUDGED: "고객 답변 판정",
+  RE_EXPLANATION_GENERATED: "재설명 생성",
+  STAFF_RESOLUTION_RECORDED: "직원 처리 기록",
+  SESSION_CLOSED: "상담 종료",
+};
+
+export function auditEventLabel(eventType: string | undefined): string {
+  if (!eventType) return "처리";
+  return AUDIT_EVENT_LABEL[eventType] ?? eventType;
+}
+
+export const ACTOR_ROLE_LABEL: Record<string, string> = {
+  STAFF: "직원",
+  CUSTOMER: "고객",
+  SYSTEM: "시스템",
+  AI: "AI",
+};

@@ -65,14 +65,16 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
     session.data.sessionStatus === "SESSION_CLOSED_BY_STAFF" ||
     session.data.sessionStatus === "SESSION_CLOSED_WITH_UNRESOLVED";
 
-  // Two ways in: the AI ran out of attempts, or a staff member came from the
-  // report to overturn a call they consider plainly wrong. The second path
-  // must stay open even when the risk already reads as resolved — that is
-  // the point of it.
+  // 직원 처리를 받는 상태는 `MANUAL_REVIEW_REQUIRED` 하나다. `COMPLETE` 는 서버가
+  // 종착으로 두어(`WorkflowStateMachine`) 409 `RISK_ALREADY_FINALIZED` 로 거절한다.
+  // 이 화면은 위험 목록의 첫 항목으로도 열릴 수 있으므로(아래 `states[0]` 폴백)
+  // 여기서도 막지 않으면 사유를 다 쓴 뒤에야 거절당한다.
   const isManualReview = state.workflowStatus === "MANUAL_REVIEW_REQUIRED";
+  const alreadyFinal = state.workflowStatus === "COMPLETE";
+  const readOnly = sessionClosed || alreadyFinal;
   const reasonOk =
     reason.trim().length >= 5 && reason.length <= INPUT_LIMITS.reason;
-  const canSubmit = reasonOk && !resolve.isPending && !sessionClosed;
+  const canSubmit = reasonOk && !resolve.isPending && !readOnly;
 
   const submit = (disposition: StaffDisposition) => {
     if (!canSubmit) return;
@@ -108,18 +110,33 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
     >
       <div className="screen-in mx-auto max-w-[920px] px-[40px] pt-[64px] pb-[96px]">
         <p className="mb-[10px] text-[12.5px] font-semibold tracking-[0.1em] text-[var(--color-muted-soft)]">
-          S07 · {isManualReview ? "직원 확인 필요" : "직원 재확인"}
+          S07 · {isManualReview ? "직원 확인 필요" : alreadyFinal ? "처리 완료" : "직원 재확인"}
         </p>
         <h2 className="text-[32px] leading-[1.28] font-bold tracking-[-0.024em]">
           {isManualReview
             ? "이 항목은 직원이 함께 확인해야 합니다"
-            : "이 항목을 직원이 다시 확인합니다"}
+            : alreadyFinal
+              ? "이 항목은 처리가 끝났습니다"
+              : "이 항목을 직원이 다시 확인합니다"}
         </h2>
         <p className="mt-[14px] max-w-[760px] text-[17px] leading-[1.65] text-[var(--color-ink-muted)]">
-          {isManualReview
-            ? "두 번의 확인에도 이해 여부를 확정하지 못했습니다. 고객과 함께 확인한 뒤 처리 결과를 남겨주세요."
-            : "AI 판정이 실제 상황과 다르다고 판단되면 직원 처리를 기록할 수 있습니다."}{" "}
-          AI 판정은 아래 기록 그대로 보존되며, 직원 처리는 별도로 남습니다.
+          {isManualReview ? (
+            <>
+              두 번의 확인에도 이해 여부를 확정하지 못했습니다. 고객과 함께 확인한
+              뒤 처리 결과를 남겨주세요. AI 판정은 아래 기록 그대로 보존되며, 직원
+              처리는 별도로 남습니다.
+            </>
+          ) : alreadyFinal ? (
+            <>
+              이미 처리가 끝난 항목이라 기록을 변경할 수 없습니다. AI 판정과 직원
+              처리는 아래에 각각 그대로 보존됩니다.
+            </>
+          ) : (
+            <>
+              AI 판정이 실제 상황과 다르다고 판단되면 직원 처리를 기록할 수 있습니다.
+              AI 판정은 아래 기록 그대로 보존되며, 직원 처리는 별도로 남습니다.
+            </>
+          )}
         </p>
 
         <div className="mt-[32px] rounded-[14px] border border-[var(--color-line-soft)] bg-[var(--color-surface-muted)] px-[26px] py-[24px]">
@@ -169,9 +186,11 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
           </div>
         ) : null}
 
-        {sessionClosed ? (
+        {readOnly ? (
           <p className="mt-[28px] text-[15.5px] text-[var(--color-muted)]">
-            종료된 상담이므로 기록을 변경할 수 없습니다.
+            {sessionClosed
+              ? "종료된 상담이므로 기록을 변경할 수 없습니다."
+              : "이미 처리가 끝난 항목이라 기록을 변경할 수 없습니다."}
           </p>
         ) : (
           <>
