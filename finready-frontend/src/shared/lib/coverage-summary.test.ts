@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { countCoverageStatuses } from "@/shared/lib/coverage-summary";
+import {
+  countCoverageStatuses,
+  coverageBannerTone,
+  warningCoverageItems,
+} from "@/shared/lib/coverage-summary";
 import type { CoverageResult } from "@/shared/types/domain";
 
 const results = [
@@ -26,5 +30,20 @@ describe("coverage status summary", () => {
       NOT_FOUND: 0,
       CONTRADICTED: 0,
     });
+  });
+
+  it("uses only server gate fields to choose blocked, warning, and ready banners", () => {
+    expect(coverageBannerTone(false, [], false)).toBe("blocked");
+    expect(coverageBannerTone(true, ["R05"], false)).toBe("warning");
+    expect(coverageBannerTone(true, [], true)).toBe("warning");
+    expect(coverageBannerTone(true, [], false)).toBe("ready");
+  });
+
+  it("maps warning ids to human-readable coverage details without dropping unknown ids", () => {
+    expect(warningCoverageItems(["R03", "R99", "R02"], results)).toEqual([
+      { riskId: "R03", title: "R03", coverageStatus: "NOT_FOUND" },
+      { riskId: "R99", title: "R99", coverageStatus: undefined },
+      { riskId: "R02", title: "R02", coverageStatus: "NOT_FOUND" },
+    ]);
   });
 });

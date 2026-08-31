@@ -12,7 +12,11 @@ import {
   useSession,
 } from "@/shared/api/queries";
 import { COVERAGE_STATUS_LABEL, DISCLAIMER } from "@/shared/constants/labels";
-import { countCoverageStatuses } from "@/shared/lib/coverage-summary";
+import {
+  countCoverageStatuses,
+  coverageBannerTone,
+  warningCoverageItems,
+} from "@/shared/lib/coverage-summary";
 import type { CoverageResult } from "@/shared/types/domain";
 import { AnalysisOverlay } from "@/shared/ui/analysis-overlay";
 import { ErrorNote } from "@/shared/ui/error-note";
@@ -42,6 +46,7 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
   const cachedCoverage = useCachedCoverage(sessionId);
   const override = useOverrideGate(sessionId);
   const [overrideOpen, setOverrideOpen] = useState(false);
+  const [warningAck, setWarningAck] = useState(false);
 
   if (demo.isError || session.isError) {
     return (
@@ -122,6 +127,9 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
 
   const results = coverage.risks ?? [];
   const blocking = coverage.blockingRiskIds ?? [];
+  const warningRiskIds = coverage.warningRiskIds ?? [];
+  const needsWarningAck = warningRiskIds.length > 0;
+  const warningItems = warningCoverageItems(warningRiskIds, results);
 
   // The server decides whether the customer step may start. `gateStatus` is
   // only used to phrase *why* — never to re-judge the answer.
@@ -190,6 +198,7 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
           <GateBanner
             blocked={!canProceed}
             withOverride={withOverride}
+            warningRiskIds={warningRiskIds}
             results={results}
             targetCount={
               (session.data.understanding ?? []).length ||
@@ -301,21 +310,62 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                     </button>
                   </>
                 ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/session/${sessionId}/handoff${query}`)}
-                      className="rounded-[10px] bg-[var(--color-accent)] px-[28px] py-[14px] text-[15.5px] font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-                    >
-                      고객 이해확인 시작
-                    </button>
-                    <span className="text-[13.5px] text-[var(--color-muted-soft)]">
-                      이해확인 대상{" "}
-                      {(session.data.understanding ?? []).length ||
-                        risks.filter((r) => r.understandingCheck).length}
-                      건
-                    </span>
-                  </>
+                  <div className="w-full">
+                    {needsWarningAck ? (
+                      <label className="mb-[18px] flex max-w-[840px] items-start gap-[12px] rounded-[12px] border border-[var(--color-warn-line)] bg-[var(--color-warn-bg-soft)] px-[20px] py-[18px]">
+                        <input
+                          type="checkbox"
+                          checked={warningAck}
+                          onChange={(e) => setWarningAck(e.target.checked)}
+                          className="mt-[4px]"
+                        />
+                        <span className="text-[15px] leading-[1.65]">
+                          <b className="font-semibold">
+                            참고 확인 항목 {warningRiskIds.length}건이 완전히 설명되지
+                            않은 상태입니다.
+                          </b>
+                          <br />
+                          내용을 확인했으며 고객 이해확인을 시작합니다. 이 확인은 AI
+                          설명 충족도 판정을 변경하지 않습니다.
+                          <span className="mt-[12px] grid gap-[8px]">
+                            {warningItems.map((item) => (
+                              <span
+                                key={item.riskId}
+                                className="grid grid-cols-[52px_1fr_auto] items-center gap-[10px] border-t border-[var(--color-warn-line)] pt-[8px] text-[13.5px]"
+                              >
+                                <span className="font-mono text-[11.5px] font-semibold text-[var(--color-muted)]">
+                                  {item.riskId}
+                                </span>
+                                <span>{item.title}</span>
+                                <span className="font-semibold text-[var(--color-warn-fg)]">
+                                  {item.coverageStatus
+                                    ? COVERAGE_STATUS_LABEL[item.coverageStatus]
+                                    : "확인 필요"}
+                                </span>
+                              </span>
+                            ))}
+                          </span>
+                        </span>
+                      </label>
+                    ) : null}
+
+                    <div className="flex items-center gap-[18px]">
+                      <button
+                        type="button"
+                        disabled={needsWarningAck && !warningAck}
+                        onClick={() => router.push(`/session/${sessionId}/handoff${query}`)}
+                        className="rounded-[10px] bg-[var(--color-accent)] px-[28px] py-[14px] text-[15.5px] font-semibold text-white hover:bg-[var(--color-accent-hover)] disabled:bg-[var(--color-accent-disabled)]"
+                      >
+                        고객 이해확인 시작
+                      </button>
+                      <span className="text-[13.5px] text-[var(--color-muted-soft)]">
+                        이해확인 대상{" "}
+                        {(session.data.understanding ?? []).length ||
+                          risks.filter((r) => r.understandingCheck).length}
+                        건
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -329,14 +379,18 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
 function GateBanner({
   blocked,
   withOverride,
+  warningRiskIds,
   results,
   targetCount,
 }: {
   blocked: boolean;
   withOverride: boolean;
+  warningRiskIds: string[];
   results: CoverageResult[];
   targetCount: number;
 }) {
+  const tone = coverageBannerTone(!blocked, warningRiskIds, withOverride);
+
   if (blocked) {
     return (
       <div className="fade-in mt-[28px] flex items-start gap-[14px] rounded-[12px] border border-[var(--color-block-line)] bg-[var(--color-block-bg)] px-[24px] py-[20px]">
@@ -363,7 +417,7 @@ function GateBanner({
     <div
       className="fade-in mt-[28px] flex items-start gap-[14px] rounded-[12px] px-[24px] py-[18px]"
       style={
-        withOverride
+        tone === "warning"
           ? {
               background: "var(--color-warn-bg-soft)",
               border: "1px solid var(--color-override-line)",
@@ -379,31 +433,35 @@ function GateBanner({
         aria-hidden
         className="mt-[2px] size-[20px] flex-none text-center text-[12px]/[20px] font-bold text-white"
         style={{
-          borderRadius: withOverride ? "5px" : "50%",
-          background: withOverride
+          borderRadius: tone === "warning" ? "5px" : "50%",
+          background: tone === "warning"
             ? "var(--color-override-icon)"
             : "var(--color-ok-icon)",
         }}
       >
-        {withOverride ? "!" : "✓"}
+        {tone === "warning" ? "!" : "✓"}
       </span>
       <div className="flex-1">
         <p className="text-[16.5px] font-semibold">
           {withOverride
             ? "직원 판단으로 진행합니다. 설명 충족 확인은 완료되지 않았습니다."
-            : "설명 충족도 확인이 끝났습니다. 고객 이해확인을 진행할 수 있습니다."}
+            : tone === "warning"
+              ? "고객 이해확인은 진행할 수 있지만, 확인이 필요한 설명이 남아 있습니다."
+              : "설명 충족도 확인이 끝났습니다. 고객 이해확인을 진행할 수 있습니다."}
         </p>
         <p
           className="mt-[5px] text-[14px]"
           style={{
-            color: withOverride
+            color: tone === "warning"
               ? "var(--color-override-body)"
               : "var(--color-ok-fg)",
           }}
         >
           {withOverride
             ? "AI 판정은 변경되지 않았고 리포트에 그대로 남습니다"
-            : `이해확인 대상 ${targetCount}건 · 차단 항목 없음`}
+            : tone === "warning"
+              ? `참고 확인 항목 ${warningRiskIds.length}건 · 상담 종료 전 직원 확인 필요`
+              : `이해확인 대상 ${targetCount}건 · 차단 항목 없음`}
         </p>
         <CoverageCountSummary results={results} />
       </div>
