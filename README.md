@@ -67,6 +67,14 @@ AI는 답변을 `UNDERSTOOD` / `MISUNDERSTOOD` / `UNCERTAIN`으로 판정하고,
 넘어갈 수 없다. 넘어가려면 직원이 사유를 적어 Override해야 하고,
 그 Override는 AI 원판정을 덮어쓰지 않고 **별도 레코드로 남는다.**
 
+**`CONTRADICTED`는 정책과 무관하게 Gate를 막는다** — `WARN_ONLY` 항목이라도 마찬가지다
+(PRD §7.3 · TRD §8.6). 반대로 설명한 상담은 중요도가 낮은 항목이라도 그냥 통과시킬 수
+없다. 등급이 아니라 **방향**의 문제라서 승격된다.
+
+반대로 `WARN_ONLY`의 `INSUFFICIENT`·`NOT_FOUND`는 Gate를 막지 않는다. 경고로 모아
+직원이 확인하고 넘어가게 하며, 종료 전에 한 번 더 acknowledge를 받는다.
+한 riskId가 차단 목록과 경고 목록에 **동시에** 담기는 일은 없다.
+
 ### 상품 위험 9건 (PROD_A / No-Knock-in Step-down ELS)
 
 | ID | 항목 | 정책 | 이해확인 |
@@ -97,7 +105,7 @@ Coverage 파이프라인이 PROD_A의 구조(No-Knock-in Step-down)에 하드코
 | 시나리오 | 상담 기록의 결함 | 보여주는 것 |
 |---|---|---|
 | **main** | R03(조기상환 조건) 설명이 통째로 빠짐 | `NOT_FOUND` → Gate 차단 → 보완 설명 → 새 revision 재분석 → Gate 개방 → 고객 이해확인 → 리포트 |
-| **safety** | R02를 사실과 **반대로** 설명 ("원금 손실은 사실상 없다") | `CONTRADICTED` → Gate 차단 → 직원 Override → 고객 오해 → 재설명 → 재확인 실패 → 직원 처리(Staff Resolution) |
+| **safety** | R01을 사실과 **반대로** 설명 ("노낙인이라 사실상 원금은 지켜진다") | `CONTRADICTED` → Gate 차단 → 직원 Override → 고객 오해 → 재설명 → 재확인 실패 → 직원 처리(Staff Resolution) |
 
 main이 대표 흐름, safety가 예외 경로다. 예외를 대표 흐름에 섞지 않는다.
 
@@ -119,7 +127,7 @@ finready/
 │   └── src/main/
 │       ├── java/io/finready/  도메인별 패키지 (아래 참조)
 │       └── resources/
-│           ├── db/migration/  Flyway V1(테이블 14개) · V2(append-only) · V3(제약 수정)
+│           ├── db/migration/  Flyway V1(테이블 14개) · V2(append-only) · V3(제약 수정) · V4(토큰 컬럼)
 │           ├── seed/          product_a_risk_schema.json(위험 9건) + product_b_risk_schema.json(합성 대조군)
 │           │                  + customer_profiles.json
 │           └── static/documents/PROD_A, PROD_B/v1.0.pdf   상품설명서 (SHA-256 고정)
@@ -197,7 +205,7 @@ flowchart LR
 
 - 화면은 `fetch`를 직접 호출하지 않는다. 전부 `FinReadyApi` 인터페이스를 통과한다.
 - Mock ↔ 실서버 교체는 **환경변수 하나**다(`NEXT_PUBLIC_API_MODE`). 화면 코드는 그대로다.
-- 도메인 타입은 손으로 쓰지 않는다. `contracts/openapi.yml` → `pnpm gen:api` → `domain.ts`가 별칭만 붙인다.
+- 도메인 타입은 손으로 쓰지 않는다. `docs/openapi.yml` → `pnpm gen:api` → `domain.ts`가 별칭만 붙인다.
   백엔드가 필드를 바꾸면 런타임이 아니라 **타입체크에서 깨진다.**
 
 ---
@@ -506,7 +514,7 @@ pnpm lint             # eslint
 만들어야 확인되므로, `test` 쪽은 "코드에 그렇게 적어놨다"까지만 본다. 실제 Postgres가 필요한
 검증은 `integrationTest`로 분리했다.
 
-기준 규모는 `test` 358건 + `integrationTest` 29건 (2026-08-26). 실제 LLM을 호출하는 것은
+기준 규모는 `test` **355건**(2026-08-31 실측, skipped 0) + `integrationTest` 29건. 실제 LLM을 호출하는 것은
 `evaluate`뿐이며, `finready-backend/tools/`의 PowerShell 스크립트로 Coverage·Understanding
 전 구간 실측도 돌린다.
 
@@ -556,9 +564,8 @@ pnpm lint             # eslint
 > **계약 사본을 두지 않기로 결정했다** (2026-08-26). `finready-frontend/contracts/openapi.yml`은
 > 2026-08-22에 삭제된 채였는데, 되살리는 대신 프론트가 이 루트 파일(`docs/openapi.yml`)을
 > 직접 참조하는 쪽으로 정리했다 — 사본이 갈라질 걱정 자체가 없어진다.
-> ⚠️ **다만 프론트 `package.json`의 `gen:api` 스크립트는 아직 옛 경로
-> (`contracts/openapi.yml`)를 가리키고 있어 지금 돌리면 파일을 못 찾는다.** 이 결정을
-> 실제로 반영하는 건(스크립트 경로 수정 + 재생성) 프론트 쪽 작업으로 남아 있다.
+> **프론트 반영 완료** (2026-08-31). `package.json`의 `gen:api`와 `contract.test.ts`가
+> 모두 `../docs/openapi.yml`을 직접 읽는다. 갈라질 사본이 저장소에 존재하지 않는다.
 
 TRD §17 계약 대조 테스트(`OpenApiContractIntegrationTest`, `./gradlew integrationTest`)가
 springdoc이 실제로 생성하는 스펙과 이 파일이 경로·상태코드·요청/응답 최상위 필드명
@@ -595,10 +602,19 @@ main·safety 두 시나리오 모두 끝까지 통과한다. **배포된 백엔�
 (세션을 다시 읽어 `resumePoint`로 추정하던 우회를 제거), `pendingQuestion` 덕에 재확인 도중
 새로고침해도 attempt 1로 되돌아가지 않는다.
 
-> ⚠️ `StaffResolutionResponse`가 2026-08-26에 계약대로 재설계됐다(`{riskState, nextAction,
-> progress, sessionStatus}`) — 이전엔 요청을 그대로 echo하는 평평한 구조였다. 프론트가
-> 이 응답의 필드를 최상위에서 읽고 있었다면 `response.riskState.xxx`로 경로가 바뀐다.
-> S07 화면을 다시 붙여서 확인할 것.
+> `StaffResolutionResponse`가 2026-08-26에 계약대로 재설계됐고(`{riskState, nextAction,
+> progress, sessionStatus}` — 이전엔 요청을 그대로 echo하는 평평한 구조였다),
+> **프론트 반영까지 확인됐다** (2026-08-31). S07은 응답의 `nextAction`으로 이동하며,
+> 생성 타입이 openapi 1.4.6 기준이라 구조가 어긋나면 런타임이 아니라 타입체크에서 걸린다.
+
+**S03에 경고 확인 절차가 있다** (2026-08-31). Gate를 막지 않는 `WARN_ONLY`의
+`INSUFFICIENT`·`NOT_FOUND`가 화면에 드러나지 않아 직원이 모르고 고객 이해확인으로
+넘어갈 수 있었다. 이제 `warningRiskIds`가 비어 있지 않으면 "고객 이해확인 시작" 앞에
+확인 체크박스가 서고, 체크 전에는 버튼이 눌리지 않는다 — S08 종료 전 확인과 같은
+패턴이다. **Gate 판정 자체는 바꾸지 않았다**: PRD §7.3이 이 조합을 "진행 가능"으로
+규정하고, 차단하면 대표 데모(`CONS_A_001`)가 R05·R07·R09 때문에 영구 봉쇄된다.
+프론트는 서버가 준 `canProceedToUnderstanding`·`warningRiskIds`를 그대로 쓰고
+Gate를 재계산하지 않는다.
 
 ### 백엔드 — F01~F08 전 구간 구현 완료
 
@@ -608,7 +624,7 @@ Java 소스 134개. F01~F08 전 파이프라인이 실제 LLM으로 검증까지
 |---|---|---|
 | F01 상품·고객 로드 | ✅ | 데모 preset 서버 이관 완료(v1.4.3) |
 | F02 세션·Revision | ✅ | `StateMachine` 전이표 전수 테스트 |
-| F03 Coverage + Gate | ✅ | classifier 팬아웃 적용, 6개 시나리오 실 LLM 검증 |
+| F03 Coverage + Gate | ✅ | classifier 팬아웃 적용, 6개 시나리오 실 LLM 검증. `CONTRADICTED` 승격 미구현 수정(2026-08-27) |
 | F04 질문 발급 | ✅ | 멱등. 생성 실패는 `FALLBACK`으로 정상 처리 |
 | F05 답변 판정 | ✅ | attempt는 **경로가 정한다** (`/understanding`=1) |
 | F06 근거 기반 재설명 | ✅ | `Guardrail` 금칙어 검사 포함 |
@@ -626,12 +642,12 @@ Java 소스 134개. F01~F08 전 파이프라인이 실제 LLM으로 검증까지
 | 9 | springdoc ↔ openapi.yml 계약 대조 | ✅ 완료 — 실 드리프트 2건 발견·수정 |
 | 10 | 오프라인 평가 모듈 + Rule baseline | ✅ 완료 |
 | 11 | 데모 preset 서버 이관 | ✅ 완료 |
-| 12 | Prompt Freeze + Hold-out 1회 평가 | 미착수 — 최종 제출 직전 1회만 평가하는 성격이라 지금 할 일은 아님 |
+| 12 | Prompt Freeze + Hold-out 1회 평가 | 미착수 — Hold-out(§15.4)은 dev와 분리해 **잠긴 60건**을 요구하는데 Step 6이 P1로 보류라 성립 조건 자체가 없다 |
 | 13 | Cross-product sanity (PROD_B) | ✅ 완료 |
 
 **인프라 (완료)**
 
-- Supabase `finready` 스키마 + 전용 role, Flyway V1~V3 적용
+- Supabase `finready` 스키마 + 전용 role, Flyway V1~V4 적용
 - **Render 배포** — https://finready-backend.onrender.com (`/actuator/health` 200)
 - JPA 엔티티 14개 + enum 16개, `ddl-auto: validate` 통과
 - 시드 로더·검증기 — 위험 9건 × 2상품(PROD_A/B) + 고객 프로파일 6건, 해시 불일치 시 기동 중단
@@ -694,8 +710,12 @@ Java 소스 134개. F01~F08 전 파이프라인이 실제 LLM으로 검증까지
   상세는 `finready-backend/CLAUDE.md`의 §14.1 절
 - **`revisionNo` 채번 경쟁 상태가 남아 있다** (의도적 보류). 실패가 409
   `CONCURRENT_SESSION_UPDATE`로 나가 프론트가 재시도할 수 있게만 해뒀다
-- **`resumePoint` 매핑을 프론트 화면 정의와 대조할 것.** TRD에 규정이 없어
-  `SessionService.resumePointOf`가 단독으로 정하고 있다
+- **LLM이 떨어져 있는 두 문장을 이어붙여 인용한다** (현행 유지, 의도적).
+  R04에서 312자 떨어진 두 문장을 합쳐 내는 바람에 provenance가 `NOT_FOUND`로 무효화됐다
+  (접합부에 `직원: `까지 지어냈다). **분류기 판정 자체는 맞았고 근거를 대는 방식에서
+  걸린 것**이다 — `fact`가 두 요소인데 상담문에서 떨어져 있으면 "연속 한 구간" 제약상
+  빠져나갈 길이 없다. Gate 영향이 없어 조치하지 않았다.
+  상세는 `docs/decisions/2026-08-22-evidence-stitching.md`
 - **Guardrail 임계값 표본이 2건뿐이다.** 한 번 걸리고 한 번 통과했다(적정 신호지만 n=2)
 - TRD §1 기술스택 표 정정 (Java 21/Boot 3.x → Java 25/Boot 4.0.7) — PDF 원본이라 코드로 처리 불가
 
