@@ -18,7 +18,7 @@ const spec = readFileSync(
 
 describe("openapi contract", () => {
   it("is the version this client was written against", () => {
-    expect(spec).toContain("version: 1.4.4");
+    expect(spec).toContain("version: 1.4.6");
   });
 
   it("declares the fields the server-driven flow depends on", () => {

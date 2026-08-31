@@ -5,7 +5,7 @@ import type { components, operations } from "@/shared/api/generated/openapi";
  * OpenAPI types.
  *
  * There are no hand-written shapes here on purpose: `../docs/openapi.yml`
- * (v1.4.4) is the contract, `pnpm gen:api` regenerates from it, and this file
+ * (v1.4.6) is the contract, `pnpm gen:api` regenerates from it, and this file
  * only gives the generated schemas readable names. If the backend
  * changes a field, typecheck breaks here rather than at runtime.
  *

@@ -599,13 +599,27 @@ export interface components {
             /** @description 고객 이해 확인 버튼의 활성화 여부. 프론트가 재계산하지 않는다. */
             canProceedToUnderstanding: boolean;
             /**
-             * @description 현재 Gate를 막고 있는 Risk. 빈 배열이면 통과.
+             * @description 현재 Gate를 막고 있는 Risk. 빈 배열이면 통과. Override된 Risk는 제외된다.
+             *
+             *     판정식은 TRD §8.6 그대로다 —
+             *     `(coveragePolicy == GATE_REQUIRED AND coverageStatus != EXPLAINED)`
+             *     `OR (coverageStatus == CONTRADICTED)`.
+             *
+             *     **두 번째 항이 승격 규칙이다**: `CONTRADICTED`는 `coveragePolicy`가
+             *     `WARN_ONLY`여도 Gate를 막는다(PRD §7.3). 반대로 설명한 상담은 중요도가
+             *     낮은 항목이라도 통과시키지 않는다 — 등급이 아니라 방향의 문제다.
              * @example [
              *       "R03"
              *     ]
              */
             blockingRiskIds?: string[];
-            /** @description WARN_ONLY 중 미확인·불충분. 종료 전 acknowledge 대상. */
+            /**
+             * @description `WARN_ONLY` Risk 중 `coverageStatus`가 `INSUFFICIENT` 또는 `NOT_FOUND`인 것.
+             *     종료 전 acknowledge 대상이며 **Gate를 막지 않는다**(PRD §7.3 "진행 가능").
+             *
+             *     `CONTRADICTED`는 여기 오지 않는다 — 위 승격 규칙에 따라 `blockingRiskIds`로
+             *     간다. 한 riskId가 두 배열에 동시에 담기는 일은 없다.
+             */
             warningRiskIds?: string[];
             risks: components["schemas"]["CoverageResult"][];
             /** @description 성능·재현 관측용. 화면 표시 의무는 없으며 고객 View에는 렌더링하지 않는다. */
