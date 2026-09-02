@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnswerForm } from "@/screens/understanding/answer-form";
 import { ReExplanationView } from "@/screens/understanding/reexplanation-view";
 import { ResultView } from "@/screens/understanding/result-view";
@@ -83,6 +83,20 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
   const [activeRiskId, setActiveRiskId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [view, setView] = useState<View>({ kind: "question" });
+  /**
+   * True while NEXT_RISK/RECHECK are waiting on a fresh session snapshot
+   * before showing the next question. See `follow` for why this wait can't
+   * be skipped.
+   */
+  const [advancing, setAdvancing] = useState(false);
+  /**
+   * Guards against a double-click firing two mutations for the same
+   * (risk, attempt) before `pending` has re-rendered the disabled button.
+   * `mutate` itself doesn't dedupe, so without this a fast double-click can
+   * send the same attempt twice — the second reaches the server as a
+   * duplicate and comes back 409 ATTEMPT_LIMIT_EXCEEDED.
+   */
+  const submittedKeys = useRef(new Set<string>());
 
   const allQuestions = questions.data?.questions ?? [];
   // Settled, or waiting on a staff decision — either way the customer has
@@ -138,7 +152,10 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
   const kicker = `핵심 위험 ${current.orderIndex ?? 1} / ${total}`;
   const samples = answersForRisk(demo.data.demoAnswers, riskId);
   const pending =
-    submitAnswer.isPending || submitRecheck.isPending || reexplain.isPending;
+    submitAnswer.isPending ||
+    submitRecheck.isPending ||
+    reexplain.isPending ||
+    advancing;
 
   // The server re-serves whatever question it already issued, so this survives
   // a reload and is the only source of the attempt-2 wording. The client never
@@ -152,20 +169,35 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
   const questionText = pendingQuestion?.question ?? current.question ?? "";
 
   /** Advance to whatever the server said comes next. */
-  const follow = (nextAction: NextAction, result?: UnderstandingResponse) => {
+  const follow = async (
+    nextAction: NextAction,
+    result?: UnderstandingResponse,
+  ) => {
     switch (nextAction) {
       case "NEXT_RISK":
-        // Clearing the pin, rather than picking a successor here, is the whole
-        // point: `current` is already derived from the server's open list, so
-        // choosing "the one after current" advanced twice and skipped a risk.
-        setActiveRiskId(null);
+      case "RECHECK": {
+        // Both land back on the question view, and both read state that only
+        // exists in the GET /sessions/{id} snapshot: NEXT_RISK needs the risk
+        // just answered to show COMPLETE (closedToCustomer), RECHECK needs the
+        // attempt-2 pendingQuestion. The mutation's onSuccess only invalidates
+        // that query, it doesn't wait for it — so without this await, a slow
+        // refetch (Render/Singapore, ~1s) leaves the just-answered attempt 1
+        // question on screen, the customer answers again, and the server
+        // rejects the repeat with 409 ATTEMPT_LIMIT_EXCEEDED.
+        setAdvancing(true);
+        await session.refetch();
+        setAdvancing(false);
+        if (nextAction === "NEXT_RISK") {
+          // Clearing the pin, rather than picking a successor here, is the
+          // whole point: `current` is already derived from the server's open
+          // list, so choosing "the one after current" advanced twice and
+          // skipped a risk.
+          setActiveRiskId(null);
+        }
         setAnswer("");
         setView({ kind: "question" });
         return;
-      case "RECHECK":
-        setAnswer("");
-        setView({ kind: "question" });
-        return;
+      }
       case "REEXPLAIN":
         reexplain.mutate(
           { riskId },
@@ -189,6 +221,11 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
 
   const submit = () => {
     if (view.kind !== "question") return;
+    // See `submittedKeys` above — blocks a same-attempt resend that beats the
+    // pending-disabled button to the click.
+    const key = `${riskId}:${attempt}`;
+    if (submittedKeys.current.has(key)) return;
+    submittedKeys.current.add(key);
     const req = {
       riskId,
       answer: answer.trim(),
@@ -200,6 +237,10 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
     const mutation = isRecheck ? submitRecheck : submitAnswer;
     mutation.mutate(req, {
       onSuccess: (result) => setView({ kind: "result", result }),
+      // A failed send never reached the server as a recorded attempt, so the
+      // key is released — otherwise "다시 시도" from ErrorNote would silently
+      // no-op forever.
+      onError: () => submittedKeys.current.delete(key),
     });
   };
 
