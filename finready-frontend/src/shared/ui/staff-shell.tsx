@@ -86,28 +86,28 @@ export function StaffShell({
   return (
     <>
       <div className="sticky top-0 z-20 border-b border-[var(--color-line)] bg-[oklch(0.985_0.004_85/0.92)] backdrop-blur-[12px] backdrop-saturate-[1.4]">
-        <div className="flex items-center justify-between px-[40px] py-[14px]">
-          <div className="flex items-center gap-[14px]">
+        <div className="flex items-center justify-between gap-[12px] px-[16px] py-[12px] sm:px-[24px] lg:px-[40px] lg:py-[14px]">
+          <div className="flex min-w-0 items-center gap-[10px] sm:gap-[14px]">
             <span
               aria-hidden
               className="size-[16px] rounded-[5px] bg-[var(--color-accent)]"
             />
             <span className="text-[14px] font-semibold">FinReady</span>
-            <span aria-hidden className="text-[oklch(0.86_0.01_260)]">
+            <span aria-hidden className="hidden text-[oklch(0.86_0.01_260)] sm:inline">
               |
             </span>
-            <span className="text-[13.5px] text-[var(--color-ink-muted)]">
+            <span className="hidden min-w-0 truncate text-[13.5px] text-[var(--color-ink-muted)] sm:inline">
               {productName}
               {customerLabel ? ` · ${customerLabel}` : ""}
             </span>
-            <span className="rounded-[6px] border border-[var(--color-line)] px-[7px] py-[3px] text-[11.5px] font-semibold text-[var(--color-muted)]">
+            <span className="shrink-0 rounded-[6px] border border-[var(--color-line)] px-[7px] py-[3px] text-[11.5px] font-semibold text-[var(--color-muted)]">
               {Math.max(revision, 1)}차 기록
             </span>
           </div>
 
-          <div className="flex items-center gap-[14px]">
+          <div className="flex shrink-0 items-center gap-[8px] sm:gap-[14px]">
             <span
-              className="max-w-[320px] truncate rounded-full bg-[var(--color-accent-soft)] px-[10px] py-[4px] text-[12px] font-semibold text-[var(--color-accent)]"
+              className="hidden max-w-[320px] truncate rounded-full bg-[var(--color-accent-soft)] px-[10px] py-[4px] text-[12px] font-semibold text-[var(--color-accent)] lg:inline"
               title={preset?.label}
             >
               {preset?.label ?? "데모 상담"}
@@ -124,7 +124,7 @@ export function StaffShell({
 
         <nav
           aria-label="상담 진행 단계"
-          className="flex items-center px-[40px] pb-[12px]"
+          className="flex items-center overflow-x-auto px-[16px] pb-[10px] sm:px-[24px] lg:px-[40px] lg:pb-[12px]"
         >
           {STEPS.map((step, index) => {
             const route = STEP_ROUTE[step.id];
@@ -142,7 +142,7 @@ export function StaffShell({
                   if (!reachable || !route || isActive) return;
                   router.push(`/session/${sessionId}/${route}${query}`);
                 }}
-                className={`rounded-[8px] px-[12px] py-[6px] text-[12.5px] ${
+                className={`shrink-0 rounded-[8px] px-[12px] py-[6px] text-[12.5px] ${
                   isActive
                     ? "bg-[var(--color-accent-tab)] font-semibold text-[var(--color-ink)]"
                     : isPast

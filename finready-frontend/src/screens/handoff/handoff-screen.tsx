@@ -26,13 +26,13 @@ export function HandoffScreen({ sessionId }: { sessionId: string }) {
   });
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--color-cust-canvas)] px-[40px]">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--color-cust-canvas)] px-[20px] sm:px-[40px]">
       <div className="screen-in w-full max-w-[560px] text-center">
         <div className="mx-auto flex size-[44px] items-center justify-center rounded-[13px] bg-[var(--color-accent)]">
           <span className="text-[20px] font-semibold text-white">→</span>
         </div>
 
-        <h1 className="mt-[32px] text-[32px] leading-[1.35] font-semibold tracking-[-0.022em] text-pretty">
+        <h1 className="mt-[32px] text-[28px] leading-[1.35] font-semibold tracking-[-0.022em] text-pretty sm:text-[32px]">
           이제 고객님이 직접 확인합니다
         </h1>
         <p className="mt-[18px] text-[17px] leading-[1.7] text-[var(--color-cust-body)]">

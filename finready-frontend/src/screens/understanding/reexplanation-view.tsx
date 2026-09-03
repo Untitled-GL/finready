@@ -33,7 +33,7 @@ export function ReExplanationView({
   onContinue: () => void;
 }) {
   return (
-    <div className="screen-in px-[40px] pt-[72px] pb-[96px]">
+    <div className="screen-in px-[20px] pt-[48px] pb-[72px] sm:px-[40px] sm:pt-[72px] sm:pb-[96px]">
       <div className="mx-auto max-w-[800px]">
         <p className="text-[14px] font-semibold text-[var(--color-cust-muted)]">
           {kicker} · 다시 설명해 드릴게요
@@ -63,7 +63,7 @@ export function ReExplanationView({
         </div>
 
         <div className="mt-[32px] rounded-[16px] bg-white px-[26px] py-[24px]">
-          <div className="flex items-center justify-between gap-[16px]">
+          <div className="flex flex-col items-start justify-between gap-[6px] sm:flex-row sm:items-center sm:gap-[16px]">
             <p className="text-[14px] font-semibold">
               상품설명서 {data.sourcePage}페이지
             </p>
@@ -77,7 +77,7 @@ export function ReExplanationView({
           </p>
         </div>
 
-        <div className="mt-[36px] flex items-center gap-[18px]">
+        <div className="mt-[36px] flex flex-col items-start gap-[10px] sm:flex-row sm:items-center sm:gap-[18px]">
           <button
             type="button"
             onClick={onContinue}

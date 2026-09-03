@@ -34,7 +34,7 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
 
   if (session.isError) {
     return (
-      <div className="mx-auto max-w-[920px] px-[40px] py-[64px]">
+      <div className="mx-auto max-w-[920px] px-[20px] py-[48px] sm:px-[40px] sm:py-[64px]">
         <ErrorNote error={session.error} onRetry={() => void session.refetch()} />
       </div>
     );
@@ -51,7 +51,7 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
   if (!state) {
     return (
       <StaffShell sessionId={sessionId} revision={revisionOf(session.data)} current="s07">
-        <div className="mx-auto max-w-[920px] px-[40px] py-[64px]">
+        <div className="mx-auto max-w-[920px] px-[20px] py-[48px] sm:px-[40px] sm:py-[64px]">
           <p className="text-[17px] text-[var(--color-ink-muted)]">
             검토할 항목이 없습니다.
           </p>
@@ -108,7 +108,7 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
       revision={revisionOf(session.data)}
       current="s07"
     >
-      <div className="screen-in mx-auto max-w-[920px] px-[40px] pt-[64px] pb-[96px]">
+      <div className="screen-in mx-auto max-w-[920px] px-[20px] pt-[48px] pb-[72px] sm:px-[40px] sm:pt-[64px] sm:pb-[96px]">
         <p className="mb-[10px] text-[12.5px] font-semibold tracking-[0.1em] text-[var(--color-muted-soft)]">
           S07 · {isManualReview ? "직원 확인 필요" : alreadyFinal ? "처리 완료" : "직원 재확인"}
         </p>
@@ -150,7 +150,7 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
             return (
               <div
                 key={attempt.attempt}
-                className="grid grid-cols-[96px_1fr] gap-[18px] border-t border-[var(--color-line-soft)] py-[12px]"
+                className="grid grid-cols-1 gap-[6px] border-t border-[var(--color-line-soft)] py-[12px] sm:grid-cols-[96px_1fr] sm:gap-[18px]"
               >
                 <span className="text-[13px] font-semibold text-[oklch(0.5_0.01_260)]">
                   {attempt.attempt}차 답변
@@ -181,7 +181,9 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
               {state.staffResolution.reason}
             </p>
             <p className="mt-[8px] font-mono text-[11.5px] text-[var(--color-muted-soft)]">
-              {state.staffResolution.disposition} · {state.staffResolution.actor}
+              {state.staffResolution.disposition === "UNRESOLVED"
+                ? "미해결"
+                : "직원 확인 완료"} · 처리자 {state.staffResolution.actor}
             </p>
           </div>
         ) : null}
@@ -245,7 +247,7 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
               </div>
             ) : null}
 
-            <div className="mt-[24px] flex items-center gap-[14px]">
+            <div className="mt-[24px] flex flex-wrap items-center gap-[12px] sm:gap-[14px]">
               <button
                 type="button"
                 onClick={() => submit("RESOLVED_BY_STAFF")}
@@ -262,7 +264,7 @@ export function StaffReviewScreen({ sessionId }: { sessionId: string }) {
               >
                 미해결로 남기기
               </button>
-              <span className="ml-auto text-[13px] text-[var(--color-muted-soft)]">
+              <span className="w-full text-[13px] text-[var(--color-muted-soft)] sm:ml-auto sm:w-auto">
                 미해결은 리포트와 종료 상태에 그대로 표시됩니다
               </span>
             </div>

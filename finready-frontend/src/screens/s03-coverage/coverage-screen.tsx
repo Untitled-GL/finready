@@ -178,10 +178,10 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
         />
       ) : null}
 
-      <div className="screen-in px-[40px] pt-[40px] pb-[80px]">
+      <div className="screen-in px-[20px] pt-[32px] pb-[64px] sm:px-[40px] sm:pt-[40px] sm:pb-[80px]">
         <div className="mx-auto max-w-[1360px]">
           <p className="mb-[10px] text-[12.5px] font-semibold tracking-[0.1em] text-[var(--color-muted-soft)]">
-            S03 · 설명 충족도 (COVERAGE)
+            S03 · 설명 충족도
           </p>
           <div className="flex items-end justify-between gap-[24px]">
             <div>
@@ -214,14 +214,14 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
             />
           ) : null}
 
-          <div className="mt-[36px] grid grid-cols-[452px_1fr] items-start gap-[32px]">
+          <div className="mt-[36px] grid grid-cols-1 items-start gap-[48px] xl:grid-cols-[452px_1fr] xl:gap-[32px]">
             <div>
               <div className="flex items-baseline justify-between border-b border-[var(--color-line-strong)] pb-[12px]">
                 <span className="text-[12px] font-semibold tracking-[0.1em] text-[var(--color-muted-soft)]">
                   상품 위험 {results.length}건
                 </span>
                 <span className="text-[12.5px] text-[var(--color-muted-soft)]">
-                  GATE 대상 {gateRequiredCount}건
+                  필수 확인 항목 {gateRequiredCount}건
                 </span>
               </div>
 
@@ -235,7 +235,7 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                         type="button"
                         aria-current={on ? "true" : undefined}
                         onClick={() => selectRisk(result.riskId as string)}
-                        className="flex w-full items-center gap-[12px] rounded-[8px] border-b border-[var(--color-line-faint)] px-[14px] py-[14px] text-left"
+                        className="flex w-full items-center gap-[10px] rounded-[8px] border-b border-[var(--color-line-faint)] px-[10px] py-[14px] text-left sm:gap-[12px] sm:px-[14px]"
                         style={{
                           background: on ? "var(--color-accent-tint)" : "transparent",
                           boxShadow: on ? "inset 2px 0 0 var(--color-accent)" : "none",
@@ -251,7 +251,7 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                         >
                           {result.riskId}
                         </span>
-                        <span className="text-[15px] font-medium">{result.title}</span>
+                        <span className="min-w-0 flex-1 text-[15px] font-medium">{result.title}</span>
                         <span
                           className="ml-auto inline-flex shrink-0 items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[13px] font-semibold"
                           style={{ background: style.bg, color: style.fg }}
@@ -279,7 +279,7 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                 />
               ) : null}
 
-              <div className="mt-[40px] flex items-center gap-[18px] border-t border-[var(--color-line)] pt-[24px]">
+              <div className="mt-[40px] flex flex-wrap items-center gap-[14px] border-t border-[var(--color-line)] pt-[24px] sm:gap-[18px]">
                 {!canProceed ? (
                   <>
                     <button
@@ -304,7 +304,7 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                     <button
                       type="button"
                       onClick={() => setOverrideOpen(true)}
-                      className="ml-auto px-[2px] py-[6px] text-[13.5px] text-[var(--color-muted-soft)] underline underline-offset-[3px] hover:text-[var(--color-ink-body)]"
+                      className="px-[2px] py-[6px] text-[13.5px] text-[var(--color-muted-soft)] underline underline-offset-[3px] hover:text-[var(--color-ink-body)] sm:ml-auto"
                     >
                       직원 판단으로 진행
                     </button>
@@ -331,13 +331,13 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                             {warningItems.map((item) => (
                               <span
                                 key={item.riskId}
-                                className="grid grid-cols-[52px_1fr_auto] items-center gap-[10px] border-t border-[var(--color-warn-line)] pt-[8px] text-[13.5px]"
+                                className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-x-[8px] gap-y-[2px] border-t border-[var(--color-warn-line)] pt-[8px] text-[13.5px] sm:grid-cols-[52px_1fr_auto] sm:gap-[10px]"
                               >
                                 <span className="font-mono text-[11.5px] font-semibold text-[var(--color-muted)]">
                                   {item.riskId}
                                 </span>
                                 <span>{item.title}</span>
-                                <span className="font-semibold text-[var(--color-warn-fg)]">
+                                <span className="col-start-2 font-semibold text-[var(--color-warn-fg)] sm:col-start-auto">
                                   {item.coverageStatus
                                     ? COVERAGE_STATUS_LABEL[item.coverageStatus]
                                     : "확인 필요"}
@@ -349,7 +349,7 @@ export function CoverageScreen({ sessionId }: { sessionId: string }) {
                       </label>
                     ) : null}
 
-                    <div className="flex items-center gap-[18px]">
+                    <div className="flex flex-wrap items-center gap-[12px] sm:gap-[18px]">
                       <button
                         type="button"
                         disabled={needsWarningAck && !warningAck}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  coverageStatusChangeLabel,
   countCoverageStatuses,
   coverageBannerTone,
   warningCoverageItems,
@@ -45,5 +46,14 @@ describe("coverage status summary", () => {
       { riskId: "R99", title: "R99", coverageStatus: undefined },
       { riskId: "R02", title: "R02", coverageStatus: "NOT_FOUND" },
     ]);
+  });
+
+  it("describes both improving and worsening verification changes without reversing their meaning", () => {
+    expect(coverageStatusChangeLabel("INSUFFICIENT", "EXPLAINED")).toBe(
+      "AI 최초 판정: 설명 불충분 · 원문 확인 후: 설명 확인",
+    );
+    expect(coverageStatusChangeLabel("EXPLAINED", "INSUFFICIENT")).toBe(
+      "AI 최초 판정: 설명 확인 · 원문 확인 후: 설명 불충분",
+    );
   });
 });

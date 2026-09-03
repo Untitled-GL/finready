@@ -53,7 +53,7 @@ export function ResultView({
   const style = understandingStyle(aiStatus);
 
   return (
-    <div className="screen-in px-[40px] pt-[80px] pb-[96px]">
+    <div className="screen-in px-[20px] pt-[52px] pb-[72px] sm:px-[40px] sm:pt-[80px] sm:pb-[96px]">
       <div className="mx-auto max-w-[760px]">
         <p className="mb-[14px] text-[14px] font-semibold text-[var(--color-cust-muted)]">
           {kicker}
@@ -66,7 +66,7 @@ export function ResultView({
           </span>
         </div>
 
-        <h2 className="mt-[18px] text-[34px] leading-[1.35] font-semibold tracking-[-0.022em] text-pretty">
+        <h2 className="mt-[18px] text-[28px] leading-[1.4] font-semibold tracking-[-0.022em] text-pretty sm:text-[34px] sm:leading-[1.35]">
           {HEADLINE[aiStatus]}
         </h2>
         {reason ? (
@@ -82,7 +82,7 @@ export function ResultView({
           <p className="text-[16.5px] leading-[1.75]">{answer}</p>
         </div>
 
-        <div className="mt-[36px] flex items-center gap-[18px]">
+        <div className="mt-[36px] flex flex-col items-start gap-[10px] sm:flex-row sm:items-center sm:gap-[18px]">
           <button
             type="button"
             onClick={onContinue}

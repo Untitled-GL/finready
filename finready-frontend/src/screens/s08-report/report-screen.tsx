@@ -11,12 +11,15 @@ import {
   DISCLAIMER_REPORT,
   FINAL_DISPOSITION_LABEL,
   INPUT_LIMITS,
+  OVERRIDE_CATEGORY_LABEL,
   UNDERSTANDING_AI_STATUS_LABEL,
 } from "@/shared/constants/labels";
 import {
+  coverageStatusChangeLabel,
   warningCoverageItems,
   type WarningCoverageItem,
 } from "@/shared/lib/coverage-summary";
+import { understandingTimelineEvents } from "@/shared/lib/report-presentation";
 import type {
   ReportResponse,
   RiskUnderstandingState,
@@ -48,7 +51,7 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
 
   if (report.isError) {
     return (
-      <div className="mx-auto max-w-[1080px] px-[40px] py-[64px]">
+      <div className="mx-auto max-w-[1080px] px-[20px] py-[48px] sm:px-[40px] sm:py-[64px]">
         <ErrorNote error={report.error} onRetry={() => void report.refetch()} />
       </div>
     );
@@ -93,12 +96,12 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
       revision={revisions[revisions.length - 1]?.revision ?? 1}
       current="s08"
     >
-      <div className="screen-in px-[40px] pt-[48px] pb-[96px]">
+      <div className="screen-in px-[20px] pt-[36px] pb-[72px] sm:px-[40px] sm:pt-[48px] sm:pb-[96px]">
         <div className="mx-auto max-w-[1080px]">
           <p className="mb-[10px] text-[12.5px] font-semibold tracking-[0.1em] text-[var(--color-muted-soft)]">
-            S08 · FINREADY REPORT
+            S08 · 상담 결과
           </p>
-          <div className="flex items-end justify-between gap-[24px]">
+          <div className="flex flex-col items-start justify-between gap-[18px] sm:flex-row sm:items-end sm:gap-[24px]">
             <div>
               <h2 className="text-[36px] leading-[1.22] font-bold tracking-[-0.028em]">
                 상담 검증 리포트
@@ -133,7 +136,7 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
                 return (
                   <div
                     key={result.riskId}
-                    className="grid grid-cols-[56px_1fr_190px_150px] items-center gap-[16px] border-t border-[var(--color-line-soft)] py-[13px]"
+                    className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[8px] border-t border-[var(--color-line-soft)] py-[13px] md:grid-cols-[56px_1fr_190px_150px] md:gap-[16px]"
                   >
                     <span className="font-mono text-[11.5px] font-semibold text-[var(--color-muted)]">
                       {result.riskId}
@@ -142,19 +145,21 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
                       {result.title}
                       {result.downgraded ? (
                         <span className="ml-[10px] text-[12.5px] text-[var(--color-warn-fg)]">
-                          AI는 &lsquo;{COVERAGE_STATUS_LABEL[result.classifierStatus]}
-                          &rsquo;으로 봤으나 근거 확인에서 기준 미달
+                          {coverageStatusChangeLabel(
+                            result.classifierStatus,
+                            result.coverageStatus,
+                          )}
                         </span>
                       ) : null}
                     </span>
                     <span
-                      className="inline-flex w-fit items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[13px] font-semibold"
+                      className="col-start-2 inline-flex w-fit items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[13px] font-semibold md:col-start-auto"
                       style={{ background: style.bg, color: style.fg }}
                     >
                       <StatusDot shape={style.shape} color={style.dotColor} />
                       {style.label}
                     </span>
-                    <span className="font-mono text-[11.5px] font-medium text-[var(--color-muted-soft)]">
+                    <span className="col-start-2 font-mono text-[11.5px] font-medium text-[var(--color-muted-soft)] md:col-start-auto">
                       {COVERAGE_POLICY_LABEL[result.coveragePolicy]}
                     </span>
                   </div>
@@ -178,7 +183,7 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
               </p>
             ) : (
               <div className="mt-[18px]">
-                <div className="grid grid-cols-[56px_1fr_200px_200px_180px] items-center gap-[16px] pb-[10px]">
+                <div className="hidden grid-cols-[56px_1fr_200px_200px_180px] items-center gap-[16px] pb-[10px] md:grid">
                   <span />
                   {["핵심 위험", "AI 판정", "최종 처리"].map((label) => (
                     <span
@@ -252,7 +257,7 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
             </div>
 
             {understanding.length > 0 ? (
-              <div className="mt-[24px] grid grid-cols-3 gap-[32px]">
+              <div className="mt-[24px] grid grid-cols-1 gap-[28px] md:grid-cols-3 md:gap-[32px]">
                 {understanding.map((state) => (
                   <Timeline key={state.riskId} state={state} />
                 ))}
@@ -266,7 +271,7 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
           {/* close */}
           {closed ? (
             <div
-              className="fade-in mt-[40px] flex items-center gap-[16px] rounded-[12px] px-[24px] py-[20px]"
+              className="fade-in mt-[40px] flex flex-col items-start gap-[16px] rounded-[12px] px-[24px] py-[20px] sm:flex-row sm:items-center"
               style={
                 data.sessionStatus === "SESSION_CLOSED_WITH_UNRESOLVED"
                   ? {
@@ -358,7 +363,7 @@ export function ReportScreen({ sessionId }: { sessionId: string }) {
                 <ErrorNote className="mb-[20px]" error={close.error} />
               ) : null}
 
-              <div className="flex items-center gap-[16px]">
+              <div className="flex flex-wrap items-center gap-[12px] sm:gap-[16px]">
                 <button
                   type="button"
                   onClick={submitClose}
@@ -439,7 +444,7 @@ function WarningRows({
       {items.map((item) => (
         <span
           key={item.riskId}
-          className="grid grid-cols-[52px_1fr_auto] items-center gap-[10px] border-t pt-[8px] text-[13.5px]"
+          className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-x-[8px] gap-y-[2px] border-t pt-[8px] text-[13.5px] sm:grid-cols-[52px_1fr_auto] sm:gap-[10px]"
           style={{
             borderColor: muted
               ? "var(--color-line-soft)"
@@ -451,7 +456,7 @@ function WarningRows({
           </span>
           <span>{item.title}</span>
           <span
-            className="font-semibold"
+            className="col-start-2 font-semibold sm:col-start-auto"
             style={{
               color: muted ? "var(--color-muted)" : "var(--color-warn-fg)",
             }}
@@ -490,7 +495,7 @@ function Summary({ data }: { data: ReportResponse }) {
    * 0건(미완료 신호)이 같아 보이므로 값을 비워 둔다.
    */
   const notStarted = understanding.length === 0;
-  const pending = "—";
+  const pending = "확인 전";
 
   const cells = [
     {
@@ -510,9 +515,9 @@ function Summary({ data }: { data: ReportResponse }) {
       warn: false,
     },
     {
-      q: "AI 자동 확인",
+      q: "AI 답변 일치",
       a: notStarted ? pending : `${auto}건`,
-      sub: "직원 개입 없이 자동 처리",
+      sub: "위험 사실과 고객 답변이 일치",
       warn: false,
     },
     {
@@ -535,9 +540,9 @@ function Summary({ data }: { data: ReportResponse }) {
 
   return (
     <div className="mt-[40px] border-t border-b border-[var(--color-line-strong)] py-[28px]">
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-2 gap-y-[24px] sm:grid-cols-3 lg:grid-cols-5 lg:gap-y-0">
         {cells.map((cell) => (
-          <div key={cell.q} className="pr-[28px]">
+          <div key={cell.q} className="pr-[16px] lg:pr-[28px]">
             <p className="text-[13.5px] leading-[1.5] text-[var(--color-muted)]">
               {cell.q}
             </p>
@@ -586,13 +591,13 @@ function UnderstandingRow({
     disposition === "UNRESOLVED" || disposition === "SKIPPED_BY_OVERRIDE";
 
   return (
-    <div className="grid grid-cols-[56px_1fr_200px_200px_180px] items-center gap-[16px] border-t border-[var(--color-line-soft)] py-[13px]">
+    <div className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[8px] border-t border-[var(--color-line-soft)] py-[13px] md:grid-cols-[56px_1fr_200px_200px_180px] md:gap-[16px]">
       <span className="font-mono text-[11.5px] font-semibold text-[var(--color-muted)]">
         {state.riskId}
       </span>
       <span className="text-[15.5px]">{state.riskTitle}</span>
 
-      <span>
+      <span className="col-start-2 md:col-start-auto">
         {style && aiStatus ? (
           <span
             className="inline-flex w-fit items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[13px] font-semibold"
@@ -607,7 +612,7 @@ function UnderstandingRow({
       </span>
 
       <span
-        className="text-[14px]"
+        className="col-start-2 text-[14px] md:col-start-auto"
         style={{ color: dispositionWarn ? "var(--color-none-fg)" : undefined }}
       >
         {disposition ? FINAL_DISPOSITION_LABEL[disposition] : "진행 중"}
@@ -622,12 +627,12 @@ function UnderstandingRow({
         <button
           type="button"
           onClick={onReview}
-          className="justify-self-start px-[2px] py-[6px] text-[13px] text-[var(--color-muted-soft)] underline underline-offset-[3px] hover:text-[var(--color-ink-body)]"
+          className="col-start-2 justify-self-start px-[2px] py-[6px] text-[13px] text-[var(--color-muted-soft)] underline underline-offset-[3px] hover:text-[var(--color-ink-body)] md:col-start-auto"
         >
           직원이 확인
         </button>
       ) : (
-        <span />
+        <span className="hidden md:block" />
       )}
     </div>
   );
@@ -656,9 +661,11 @@ function StaffDecisions({ data }: { data: ReportResponse }) {
             <span className="font-mono text-[11.5px] font-semibold text-[var(--color-muted)]">
               {override.riskId}
             </span>
-            <span className="text-[15.5px] font-semibold">Gate 직원 판단</span>
+            <span className="text-[15.5px] font-semibold">직원 판단으로 진행</span>
             <span className="font-mono text-[11.5px] font-medium text-[var(--color-muted-soft)]">
-              {override.category} · {override.actor}
+              {override.category
+                ? OVERRIDE_CATEGORY_LABEL[override.category]
+                : "기타"} · 처리자 {override.actor}
               {override.staffExplanationConfirmed === false
                 ? " · 설명 미확인으로 질문 제외"
                 : ""}
@@ -705,52 +712,7 @@ function StaffDecisions({ data }: { data: ReportResponse }) {
 }
 
 function Timeline({ state }: { state: RiskUnderstandingState }) {
-  const attempts = state.attempts ?? [];
-  const events: Array<{ label: string; sub: string; tone: string }> = [];
-
-  attempts.forEach((attempt, index) => {
-    const status = attempt.aiStatus;
-    events.push({
-      label: `${attempt.attempt}차 답변`,
-      sub: status
-        ? `${UNDERSTANDING_AI_STATUS_LABEL[status]}${attempt.reason ? ` · ${attempt.reason}` : ""}`
-        : "",
-      tone: status ? understandingStyle(status).dotColor : "var(--color-line)",
-    });
-    if (index === 0 && status === "MISUNDERSTOOD" && attempts.length > 1) {
-      events.push({
-        label: "근거 기반 재설명",
-        sub: "상품설명서 원문으로 다시 설명",
-        tone: "var(--color-accent)",
-      });
-    }
-  });
-
-  if (state.staffResolution) {
-    events.push({
-      label:
-        state.staffResolution.disposition === "UNRESOLVED"
-          ? "미해결로 종결"
-          : "직원 확인으로 해결",
-      sub: state.staffResolution.reason ?? "",
-      tone:
-        state.staffResolution.disposition === "UNRESOLVED"
-          ? "var(--color-none-dot)"
-          : "var(--color-ok-dot)",
-    });
-  } else if (state.finalDisposition === "AUTO_RESOLVED") {
-    events.push({
-      label: "확인 완료",
-      sub: "AI 자동 확인",
-      tone: "var(--color-ok-dot)",
-    });
-  } else if (state.finalDisposition === "SKIPPED_BY_OVERRIDE") {
-    events.push({
-      label: "질문 제외",
-      sub: "직원 판단으로 제외 · 미해결로 남음",
-      tone: "var(--color-none-dot)",
-    });
-  }
+  const events = understandingTimelineEvents(state);
 
   return (
     <div>
@@ -770,6 +732,11 @@ function Timeline({ state }: { state: RiskUnderstandingState }) {
           </div>
           <div className="pb-[16px]">
             <p className="text-[15px] font-medium">{event.label}</p>
+            {event.answer ? (
+              <p className="mt-[6px] border-l-2 border-[var(--color-line-strong)] pl-[10px] text-[14px] leading-[1.6] text-[var(--color-ink-body)]">
+                {event.answer}
+              </p>
+            ) : null}
             {event.sub ? (
               <p className="mt-[4px] text-[13px] leading-[1.5] text-[var(--color-muted)]">
                 {event.sub}
@@ -783,36 +750,48 @@ function Timeline({ state }: { state: RiskUnderstandingState }) {
 }
 
 function AuditLog({ data }: { data: ReportResponse }) {
-  // 원문 `payloadSummary`는 `key=value` 나열이라 상담 직원에게는 읽을 것이
-  // 없다. 감사 기록이므로 지우지는 않고 기본으로 접어 둔다.
+  const [showEvents, setShowEvents] = useState(false);
+  // 원문 `payloadSummary`는 `key=value` 나열이라 기본 처리 기록보다도 한 단계
+  // 더 깊게 둔다. 감사 자료는 보존하되 일상적인 직원 검토를 방해하지 않는다.
   const [showRaw, setShowRaw] = useState(false);
   const events = data.auditEvents ?? [];
   if (events.length === 0) return null;
 
   return (
     <section className="mt-[48px]">
-      <div className="flex items-end justify-between gap-[24px]">
+      <div className="flex flex-col items-start justify-between gap-[16px] sm:flex-row sm:items-end sm:gap-[24px]">
         <div>
           <h3 className="text-[20px] font-semibold tracking-[-0.015em]">
-            5 · 처리 기록
+            5 · 상세 처리 기록
           </h3>
           <p className="mt-[8px] text-[14.5px] text-[oklch(0.52_0.01_260)]">
-            시스템·AI·직원이 이 상담을 처리하며 남긴 자동 기록입니다. 열람 전용이며
-            고치거나 지울 수 없습니다.
+            총 {events.length}건의 자동 처리 기록이 보관되어 있습니다. 필요한 경우에만
+            펼쳐서 확인할 수 있습니다.
           </p>
         </div>
         <button
           type="button"
-          onClick={() => setShowRaw((on) => !on)}
-          aria-expanded={showRaw}
+          onClick={() => setShowEvents((on) => !on)}
+          aria-expanded={showEvents}
           className="shrink-0 px-[2px] py-[6px] text-[13px] text-[var(--color-muted-soft)] underline underline-offset-[3px] hover:text-[var(--color-ink-body)]"
         >
-          {showRaw ? "기술 상세 숨기기" : "기술 상세 보기"}
+          {showEvents ? "상세 처리 기록 접기" : "상세 처리 기록 보기"}
         </button>
       </div>
 
+      {showEvents ? (
       <div className="mt-[18px]">
-        <div className="grid grid-cols-[130px_70px_1fr] gap-[16px] border-b border-[var(--color-line-strong)] pb-[10px]">
+        <div className="mb-[10px] flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowRaw((on) => !on)}
+            aria-expanded={showRaw}
+            className="px-[2px] py-[6px] text-[12.5px] text-[var(--color-muted-soft)] underline underline-offset-[3px] hover:text-[var(--color-ink-body)]"
+          >
+            {showRaw ? "기술 정보 숨기기" : "기술 정보 함께 보기"}
+          </button>
+        </div>
+        <div className="grid grid-cols-[88px_54px_minmax(0,1fr)] gap-[10px] border-b border-[var(--color-line-strong)] pb-[10px] sm:grid-cols-[130px_70px_1fr] sm:gap-[16px]">
           {["시간", "처리 주체", "처리 내용"].map((label) => (
             <span
               key={label}
@@ -826,7 +805,7 @@ function AuditLog({ data }: { data: ReportResponse }) {
         {events.map((event, index) => (
           <div
             key={index}
-            className="grid grid-cols-[130px_70px_1fr] items-start gap-[16px] border-t border-[var(--color-line-faint)] py-[11px]"
+            className="grid grid-cols-[88px_54px_minmax(0,1fr)] items-start gap-[10px] border-t border-[var(--color-line-faint)] py-[11px] sm:grid-cols-[130px_70px_1fr] sm:gap-[16px]"
           >
             <span className="text-[13px] text-[var(--color-muted)]">
               {formatEventTime(event.createdAt)}
@@ -845,6 +824,7 @@ function AuditLog({ data }: { data: ReportResponse }) {
           </div>
         ))}
       </div>
+      ) : null}
     </section>
   );
 }

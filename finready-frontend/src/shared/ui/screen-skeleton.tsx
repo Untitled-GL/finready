@@ -10,7 +10,7 @@ export function ScreenSkeleton({ label = "불러오는 중" }: { label?: string 
     <div
       role="status"
       aria-live="polite"
-      className="fade-in mx-auto max-w-[1040px] px-[40px] py-[96px] text-[14px] text-[var(--color-muted-soft)]"
+      className="fade-in mx-auto max-w-[1040px] px-[20px] py-[72px] text-[14px] text-[var(--color-muted-soft)] sm:px-[40px] sm:py-[96px]"
     >
       {label}
     </div>

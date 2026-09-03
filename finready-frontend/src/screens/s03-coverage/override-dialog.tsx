@@ -67,7 +67,7 @@ export function OverrideDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="override-title"
-      className="fade-in fixed inset-0 z-70 flex items-center justify-center bg-[var(--color-scrim)] p-[40px] backdrop-blur-[3px]"
+      className="fade-in fixed inset-0 z-70 flex items-center justify-center bg-[var(--color-scrim)] p-[16px] backdrop-blur-[3px] sm:p-[40px]"
     >
       <div className="screen-in w-[560px] rounded-[18px] bg-white px-[34px] py-[32px] shadow-[0_30px_60px_-24px_oklch(0.3_0.02_260/0.5)]">
         <h3 id="override-title" className="text-[22px] font-semibold tracking-[-0.015em]">
@@ -147,7 +147,7 @@ export function OverrideDialog({
 
         {error ? <ErrorNote className="mt-[18px]" error={error} /> : null}
 
-        <div className="mt-[26px] flex items-center gap-[14px]">
+        <div className="mt-[26px] flex flex-wrap items-center gap-[12px] sm:gap-[14px]">
           <button
             type="button"
             onClick={submit}

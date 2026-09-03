@@ -67,7 +67,7 @@ export function LandingScreen() {
 
   return (
     <div className="screen-in">
-      <header className="flex items-center justify-between border-b border-[var(--color-line)] px-[120px] py-[24px]">
+      <header className="flex items-center justify-between gap-[16px] border-b border-[var(--color-line)] px-[20px] py-[20px] sm:px-[40px] lg:px-[120px] lg:py-[24px]">
         <div className="flex items-center gap-[10px]">
           <span
             aria-hidden
@@ -77,13 +77,13 @@ export function LandingScreen() {
             FinReady
           </span>
         </div>
-        <span className="text-[13px] text-[var(--color-muted)]">
+        <span className="text-right text-[13px] text-[var(--color-muted)]">
           Finance, Ready for You.
         </span>
       </header>
 
-      <main className="mx-auto max-w-[1040px] px-[40px] pt-[112px]">
-        <h1 className="text-[68px] leading-[1.14] font-bold tracking-[-0.035em] text-pretty">
+      <main className="mx-auto max-w-[1040px] px-[20px] pt-[64px] sm:px-[40px] sm:pt-[88px] lg:pt-[112px]">
+        <h1 className="text-[42px] leading-[1.18] font-bold tracking-[-0.035em] text-pretty sm:text-[56px] lg:text-[68px]">
           당신이 이해할 때까지,
           <br />
           금융을 더 명확하게.
@@ -131,12 +131,12 @@ export function LandingScreen() {
           </label>
         </section>
 
-        <div className="mt-[28px] flex items-center gap-[24px]">
+        <div className="mt-[28px] flex flex-col items-start gap-[12px] sm:flex-row sm:items-center sm:gap-[24px]">
           <button
             type="button"
             onClick={start}
             disabled={busy}
-            className="rounded-[11px] bg-[var(--color-accent)] px-[30px] py-[15px] text-[16px] font-semibold text-white hover:bg-[var(--color-accent-hover)] disabled:bg-[var(--color-accent-disabled)]"
+            className="whitespace-nowrap rounded-[11px] bg-[var(--color-accent)] px-[30px] py-[15px] text-[16px] font-semibold text-white hover:bg-[var(--color-accent-hover)] disabled:bg-[var(--color-accent-disabled)]"
           >
             {pending === scenarioId ? "세션 준비 중…" : "선택한 데모 시작"}
           </button>

@@ -1,9 +1,7 @@
 import { EvidenceQuote } from "@/screens/s03-coverage/evidence-quote";
-import {
-  COVERAGE_POLICY_LABEL,
-  COVERAGE_STATUS_LABEL,
-} from "@/shared/constants/labels";
+import { COVERAGE_POLICY_LABEL } from "@/shared/constants/labels";
 import type { CoverageResult, ProductRisk } from "@/shared/types/domain";
+import { coverageStatusChangeLabel } from "@/shared/lib/coverage-summary";
 import { CoverageStatusPill } from "@/shared/ui/status-pill";
 
 /**
@@ -51,9 +49,7 @@ export function RiskDetail({
           merged status. */}
       {result.downgraded ? (
         <p className="mt-[16px] rounded-[10px] border border-[var(--color-warn-line)] bg-[var(--color-warn-bg-soft)] px-[18px] py-[12px] text-[14px] leading-[1.6] text-[var(--color-ink-body)]">
-          AI 최초 판정은 {COVERAGE_STATUS_LABEL[result.classifierStatus]}
-          이었으나, 원문 대조 검증을 통과하지 못해{" "}
-          {COVERAGE_STATUS_LABEL[status]}로 확정했습니다.
+          {coverageStatusChangeLabel(result.classifierStatus, status)}
         </p>
       ) : null}
 

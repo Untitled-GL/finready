@@ -39,7 +39,7 @@ export const FINAL_DISPOSITION_LABEL: Record<
   UnderstandingFinalDisposition,
   string
 > = {
-  AUTO_RESOLVED: "자동 확인",
+  AUTO_RESOLVED: "AI 판정으로 완료",
   RESOLVED_BY_STAFF: "직원 확인 완료",
   UNRESOLVED: "미해결",
   SKIPPED_BY_OVERRIDE: "직원 판단으로 제외",

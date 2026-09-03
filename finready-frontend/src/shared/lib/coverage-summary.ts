@@ -2,6 +2,7 @@ import type {
   CoverageResult,
   CoverageStatus,
 } from "@/shared/types/domain";
+import { COVERAGE_STATUS_LABEL } from "@/shared/constants/labels";
 
 export type CoverageStatusCounts = Record<CoverageStatus, number>;
 export type CoverageBannerTone = "blocked" | "warning" | "ready";
@@ -55,4 +56,11 @@ export function warningCoverageItems(
       coverageStatus: result?.coverageStatus,
     };
   });
+}
+
+export function coverageStatusChangeLabel(
+  classifierStatus: CoverageStatus,
+  coverageStatus: CoverageStatus,
+): string {
+  return `AI 최초 판정: ${COVERAGE_STATUS_LABEL[classifierStatus]} · 원문 확인 후: ${COVERAGE_STATUS_LABEL[coverageStatus]}`;
 }

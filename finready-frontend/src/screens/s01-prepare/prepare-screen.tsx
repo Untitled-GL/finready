@@ -81,7 +81,7 @@ export function PrepareScreen({ sessionId }: { sessionId: string }) {
       revision={session.data.currentRevision?.revision ?? 1}
       current="s01"
     >
-      <div className="screen-in mx-auto max-w-[1040px] px-[40px] pt-[64px] pb-[96px]">
+      <div className="screen-in mx-auto max-w-[1040px] px-[20px] pt-[48px] pb-[72px] sm:px-[40px] sm:pt-[64px] sm:pb-[96px]">
         <p className="mb-[10px] text-[12.5px] font-semibold tracking-[0.1em] text-[var(--color-muted-soft)]">
           S01 · 상담 준비
         </p>
@@ -89,7 +89,7 @@ export function PrepareScreen({ sessionId }: { sessionId: string }) {
           이 상담에서 확인할 내용
         </h2>
         <p className="mt-[12px] text-[17px] leading-[1.6] text-[var(--color-ink-muted)]">
-          아래 설정으로 바로 시작할 수 있습니다. 데모 프리셋이 이미 선택되어 있습니다.
+          아래 설정으로 바로 시작할 수 있습니다. 데모 설정이 이미 선택되어 있습니다.
         </p>
 
         <section className="mt-[44px] border-b border-[oklch(0.91_0.006_85)] pb-[24px]">
@@ -101,7 +101,7 @@ export function PrepareScreen({ sessionId }: { sessionId: string }) {
               {product?.name}
             </h3>
             <span className="rounded-[6px] bg-[var(--color-accent-soft)] px-[9px] py-[4px] text-[12.5px] font-semibold text-[var(--color-accent)]">
-              {product?.id}
+              데모 상품
             </span>
           </div>
           {product?.archetype === "NO_KNOCK_IN_STEP_DOWN" ? (
@@ -120,7 +120,7 @@ export function PrepareScreen({ sessionId }: { sessionId: string }) {
           ) : null}
         </section>
 
-        <section className="mt-[32px] grid grid-cols-2 gap-[48px] border-b border-[oklch(0.91_0.006_85)] pb-[28px]">
+        <section className="mt-[32px] grid grid-cols-1 gap-[28px] border-b border-[oklch(0.91_0.006_85)] pb-[28px] md:grid-cols-2 md:gap-[48px]">
           <div>
             <p className="mb-[12px] font-mono text-[12px] font-semibold text-[var(--color-muted)]">
               고객
@@ -146,7 +146,7 @@ export function PrepareScreen({ sessionId }: { sessionId: string }) {
           </div>
         </section>
 
-        <div className="mt-[36px] flex items-center gap-[20px]">
+        <div className="mt-[36px] flex flex-wrap items-center gap-[16px] sm:gap-[20px]">
           <button
             type="button"
             onClick={() => router.push(`/session/${sessionId}/transcript${query}`)}

@@ -14,10 +14,15 @@ import {
   useSubmitRecheck,
 } from "@/shared/api/queries";
 import { answersForRisk } from "@/shared/lib/demo-catalog";
+import {
+  displayedRiskIndex,
+  restorePendingResult,
+  shouldReturnToStaff,
+  type ResultPresentation,
+} from "@/shared/lib/understanding-view";
 import type {
   NextAction,
   ReExplanationResponse,
-  UnderstandingResponse,
 } from "@/shared/types/domain";
 import { CustomerShell } from "@/shared/ui/customer-shell";
 import { ErrorNote } from "@/shared/ui/error-note";
@@ -49,7 +54,7 @@ import { useScenarioQuery } from "@/shared/ui/staff-shell";
  */
 type View =
   | { kind: "question" }
-  | { kind: "result"; result: UnderstandingResponse }
+  | { kind: "result"; result: ResultPresentation }
   | { kind: "reexplain"; data: ReExplanationResponse; misunderstanding?: string }
   | { kind: "done" };
 
@@ -58,7 +63,7 @@ type View =
  * labelled with the progress the server returned alongside that answer —
  * not with whichever risk the client has since moved on to.
  */
-function resultKicker(result: UnderstandingResponse, total: number): string {
+function resultKicker(result: ResultPresentation, total: number): string {
   const index = result.progress?.currentRiskIndex;
   const of = result.progress?.totalRiskCount ?? total;
   return index ? `핵심 위험 ${index} / ${of}` : `핵심 위험 ${of} 중`;
@@ -83,6 +88,7 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
   const [activeRiskId, setActiveRiskId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [view, setView] = useState<View>({ kind: "question" });
+  const [hasLocalSubmission, setHasLocalSubmission] = useState(false);
   /**
    * True while NEXT_RISK/RECHECK are waiting on a fresh session snapshot
    * before showing the next question. See `follow` for why this wait can't
@@ -97,6 +103,17 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
    * duplicate and comes back 409 ATTEMPT_LIMIT_EXCEEDED.
    */
   const submittedKeys = useRef(new Set<string>());
+
+  const restored =
+    view.kind === "question" && !hasLocalSubmission
+      ? restorePendingResult(
+          session.data?.nextAction,
+          session.data?.understanding ?? [],
+        )
+      : null;
+  const displayedView: View = restored
+    ? { kind: "result", result: restored.result }
+    : view;
 
   const allQuestions = questions.data?.questions ?? [];
   // Settled, or waiting on a staff decision — either way the customer has
@@ -117,17 +134,24 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
     Boolean(questions.data) &&
     Boolean(session.data) &&
     openQuestions.length === 0;
+  const returningToStaff = shouldReturnToStaff(
+    customerDone,
+    displayedView.kind,
+    hasLocalSubmission,
+  );
 
   // Nothing left for the customer to answer — hand the device back. Done in
   // an effect because navigating during render updates the router mid-render.
   useEffect(() => {
-    if (customerDone) router.replace(`/session/${sessionId}/return${query}`);
-  }, [customerDone, router, sessionId, query]);
+    if (returningToStaff) {
+      router.replace(`/session/${sessionId}/return${query}`);
+    }
+  }, [returningToStaff, router, sessionId, query]);
 
   if (demo.isError || questions.isError) {
     return (
       <CustomerShell currentIndex={1} totalCount={3}>
-        <div className="mx-auto max-w-[760px] px-[40px] py-[72px]">
+        <div className="mx-auto max-w-[760px] px-[20px] py-[56px] sm:px-[40px] sm:py-[72px]">
           <ErrorNote
             error={demo.error ?? questions.error}
             onRetry={() => {
@@ -140,11 +164,15 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
     );
   }
   if (!demo.data || !questions.data || !session.data) return <ScreenSkeleton />;
-  if (customerDone) return <ScreenSkeleton label="직원 화면으로 이동합니다" />;
+  if (returningToStaff) return <ScreenSkeleton label="직원 화면으로 이동합니다" />;
 
   const total = questions.data.totalRiskCount ?? allQuestions.length;
-  const current =
-    openQuestions.find((q) => q.riskId === activeRiskId) ?? openQuestions[0];
+  const resultRiskId =
+    displayedView.kind === "result" ? displayedView.result.riskId : null;
+  const current = resultRiskId
+    ? allQuestions.find((question) => question.riskId === resultRiskId)
+    : openQuestions.find((question) => question.riskId === activeRiskId) ??
+      openQuestions[0];
 
   if (!current) return <ScreenSkeleton />;
 
@@ -171,7 +199,7 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
   /** Advance to whatever the server said comes next. */
   const follow = async (
     nextAction: NextAction,
-    result?: UnderstandingResponse,
+    result?: ResultPresentation,
   ) => {
     switch (nextAction) {
       case "NEXT_RISK":
@@ -220,12 +248,13 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
   };
 
   const submit = () => {
-    if (view.kind !== "question") return;
+    if (displayedView.kind !== "question") return;
     // See `submittedKeys` above — blocks a same-attempt resend that beats the
     // pending-disabled button to the click.
     const key = `${riskId}:${attempt}`;
     if (submittedKeys.current.has(key)) return;
     submittedKeys.current.add(key);
+    setHasLocalSubmission(true);
     const req = {
       riskId,
       answer: answer.trim(),
@@ -240,7 +269,10 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
       // A failed send never reached the server as a recorded attempt, so the
       // key is released — otherwise "다시 시도" from ErrorNote would silently
       // no-op forever.
-      onError: () => submittedKeys.current.delete(key),
+      onError: () => {
+        submittedKeys.current.delete(key);
+        setHasLocalSubmission(false);
+      },
     });
   };
 
@@ -248,16 +280,19 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
 
   return (
     <CustomerShell
-      currentIndex={current.orderIndex ?? 1}
+      currentIndex={displayedRiskIndex(
+        current.orderIndex ?? 1,
+        displayedView.kind === "result" ? displayedView.result.progress : undefined,
+      )}
       totalCount={total}
     >
       {error ? (
-        <div className="mx-auto max-w-[760px] px-[40px] pt-[40px]">
+        <div className="mx-auto max-w-[760px] px-[20px] pt-[32px] sm:px-[40px] sm:pt-[40px]">
           <ErrorNote error={error} onRetry={submit} />
         </div>
       ) : null}
 
-      {view.kind === "question" ? (
+      {displayedView.kind === "question" ? (
         <AnswerForm
           question={questionText}
           kicker={kicker}
@@ -274,29 +309,33 @@ export function UnderstandingScreen({ sessionId }: { sessionId: string }) {
         />
       ) : null}
 
-      {view.kind === "result" ? (
+      {displayedView.kind === "result" ? (
         <ResultView
-          aiStatus={view.result.aiStatus}
-          reason={view.result.reason}
-          answer={view.result.answer ?? answer}
-          kicker={resultKicker(view.result, total)}
-          nextAction={view.result.nextAction}
+          aiStatus={displayedView.result.aiStatus}
+          reason={displayedView.result.reason}
+          answer={displayedView.result.answer ?? answer}
+          kicker={resultKicker(displayedView.result, total)}
+          nextAction={displayedView.result.nextAction}
           pending={pending}
-          onContinue={() => follow(view.result.nextAction, view.result)}
+          onContinue={() =>
+            follow(displayedView.result.nextAction, displayedView.result)
+          }
         />
       ) : null}
 
-      {view.kind === "reexplain" ? (
+      {displayedView.kind === "reexplain" ? (
         <ReExplanationView
-          data={view.data}
-          misunderstanding={view.misunderstanding}
+          data={displayedView.data}
+          misunderstanding={displayedView.misunderstanding}
           kicker={kicker}
           pending={pending}
-          onContinue={() => follow(view.data.nextAction ?? "RECHECK")}
+          onContinue={() => follow(displayedView.data.nextAction ?? "RECHECK")}
         />
       ) : null}
 
-      {view.kind === "done" ? <ScreenSkeleton label="직원 화면으로 이동합니다" /> : null}
+      {displayedView.kind === "done" ? (
+        <ScreenSkeleton label="직원 화면으로 이동합니다" />
+      ) : null}
     </CustomerShell>
   );
 }

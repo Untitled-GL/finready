@@ -92,19 +92,19 @@ export function TranscriptScreen({ sessionId }: { sessionId: string }) {
     >
       {submit.isPending ? <AnalysisOverlay /> : null}
 
-      <div className="screen-in mx-auto max-w-[1040px] px-[40px] pt-[56px] pb-[96px]">
+      <div className="screen-in mx-auto max-w-[1040px] px-[20px] pt-[44px] pb-[72px] sm:px-[40px] sm:pt-[56px] sm:pb-[96px]">
         <p className="mb-[10px] text-[12.5px] font-semibold tracking-[0.1em] text-[var(--color-muted-soft)]">
           S02 · 상담 입력
         </p>
 
-        <div className="flex items-end justify-between gap-[24px]">
+        <div className="flex flex-col items-start justify-between gap-[12px] sm:flex-row sm:items-end sm:gap-[24px]">
           <div>
             <h2 className="text-[34px] leading-[1.25] font-bold tracking-[-0.025em]">
               {isSupplement ? "보완 설명 입력" : "상담 내용 확인"}
             </h2>
             <p className="mt-[12px] text-[17px] leading-[1.6] text-[var(--color-ink-muted)]">
               {isSupplement
-                ? "추가로 설명한 내용을 입력하면 기존 내용과 합쳐 새 revision으로 저장됩니다."
+                ? "추가로 설명한 내용을 입력하면 기존 내용과 합쳐 새로운 상담 기록으로 저장됩니다."
                 : "이미 텍스트로 정리된 상담 내용입니다. 확인 후 설명 충족도 분석을 시작하세요."}
             </p>
           </div>
@@ -121,7 +121,7 @@ export function TranscriptScreen({ sessionId }: { sessionId: string }) {
         {isSupplement && existingText ? (
           <div className="mt-[32px] rounded-[12px] border border-[var(--color-line-soft)] bg-[var(--color-surface-muted)] px-[22px] py-[20px]">
             <p className="mb-[10px] font-mono text-[12px] font-semibold text-[var(--color-muted-soft)]">
-              revision {currentRevision} · 기존 상담 내용
+              {currentRevision}차 기록 · 기존 상담 내용
             </p>
             <p className="text-[15px] leading-[1.8] whitespace-pre-wrap text-[oklch(0.5_0.01_260)]">
               {existingText}
@@ -145,7 +145,7 @@ export function TranscriptScreen({ sessionId }: { sessionId: string }) {
           <ErrorNote className="mt-[20px]" error={submit.error} onRetry={analyze} />
         ) : null}
 
-        <div className="mt-[24px] flex items-center gap-[16px]">
+        <div className="mt-[24px] flex flex-wrap items-center gap-[12px] sm:gap-[16px]">
           <button
             type="button"
             onClick={analyze}
@@ -164,8 +164,8 @@ export function TranscriptScreen({ sessionId }: { sessionId: string }) {
               {isSupplement ? "샘플 보완 설명 채우기" : "샘플 상담 내용 채우기"}
             </button>
           ) : null}
-          <span className="ml-auto text-[13.5px] text-[var(--color-muted-soft)]">
-            저장 시 revision {nextRevision} 생성 · 기존 내용은 수정되지 않습니다
+          <span className="w-full text-[13.5px] text-[var(--color-muted-soft)] sm:ml-auto sm:w-auto">
+            {nextRevision}차 상담 기록으로 저장됩니다. 기존 기록은 그대로 유지됩니다.
           </span>
         </div>
       </div>

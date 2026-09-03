@@ -34,12 +34,12 @@ export function AnswerForm({
   const canSubmit = answer.trim().length > 0 && !tooLong && !pending;
 
   return (
-    <div className="screen-in px-[40px] pt-[72px] pb-[96px]">
+    <div className="screen-in px-[20px] pt-[48px] pb-[72px] sm:px-[40px] sm:pt-[72px] sm:pb-[96px]">
       <div className="mx-auto max-w-[760px]">
         <p className="text-[14px] font-semibold text-[var(--color-cust-muted)]">
           {kicker}
         </p>
-        <h2 className="mt-[20px] text-[36px] leading-[1.35] font-semibold tracking-[-0.022em] text-pretty">
+        <h2 className="mt-[20px] text-[28px] leading-[1.4] font-semibold tracking-[-0.022em] text-pretty sm:text-[36px] sm:leading-[1.35]">
           {question}
         </h2>
         <p className="mt-[20px] text-[16.5px] leading-[1.7] text-[var(--color-cust-body)]">
@@ -86,7 +86,7 @@ export function AnswerForm({
           </>
         ) : null}
 
-        <div className="mt-[32px] flex items-center gap-[18px]">
+        <div className="mt-[32px] flex flex-col items-start gap-[10px] sm:flex-row sm:items-center sm:gap-[18px]">
           <button
             type="button"
             onClick={onSubmit}

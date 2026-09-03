@@ -30,7 +30,7 @@ export function ResumeScreen({ sessionId }: { sessionId: string }) {
 
   if (session.isError) {
     return (
-      <div className="mx-auto max-w-[760px] px-[40px] py-[96px]">
+      <div className="mx-auto max-w-[760px] px-[20px] py-[72px] sm:px-[40px] sm:py-[96px]">
         <ErrorNote
           error={session.error}
           onRetry={() => void session.refetch()}

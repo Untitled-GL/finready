@@ -28,13 +28,13 @@ export function ReturnScreen({ sessionId }: { sessionId: string }) {
     : `/session/${sessionId}/report${query}`;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--color-cust-canvas)] px-[40px]">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--color-cust-canvas)] px-[20px] sm:px-[40px]">
       <div className="screen-in w-full max-w-[560px] text-center">
         <div className="mx-auto flex size-[44px] items-center justify-center rounded-full bg-[var(--color-ok-icon)]">
           <span className="text-[18px] font-bold text-white">✓</span>
         </div>
 
-        <h1 className="mt-[32px] text-[32px] leading-[1.35] font-semibold tracking-[-0.022em] text-pretty">
+        <h1 className="mt-[32px] text-[28px] leading-[1.35] font-semibold tracking-[-0.022em] text-pretty sm:text-[32px]">
           고객 확인이 끝났습니다
         </h1>
         <p className="mt-[18px] text-[17px] leading-[1.7] text-[var(--color-cust-body)]">

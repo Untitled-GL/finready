@@ -65,7 +65,7 @@ export function EvidenceQuote({
         {to < revisionText.length ? " …" : ""}
       </p>
       <p className="mt-[12px] text-[13px] text-[var(--color-muted)]">
-        상담 원문 {startOffset.toLocaleString()}–{endOffset.toLocaleString()}자 · 근거
+        상담 원문 {startOffset.toLocaleString()}~{endOffset.toLocaleString()}자 · 근거
         검증 통과
       </p>
     </>
