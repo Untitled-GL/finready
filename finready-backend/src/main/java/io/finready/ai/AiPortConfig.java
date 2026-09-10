@@ -1,6 +1,7 @@
 package io.finready.ai;
 
 import io.finready.coverage.CoverageClassifier;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.finready.coverage.SemanticVerifier;
 import io.finready.explanation.ReExplanationGenerator;
 import io.finready.understanding.AnswerJudge;
@@ -36,9 +37,9 @@ public class AiPortConfig {
 	/** 키가 없으면 null 이다. 게이트웨이 생성 자체가 키를 요구하므로 미리 만들 수 없다 */
 	private final AiGateway gateway;
 
-	public AiPortConfig(AiProperties properties, LlmCallRecorder recorder) {
+	public AiPortConfig(AiProperties properties, LlmCallRecorder recorder, MeterRegistry meterRegistry) {
 		this.properties = properties;
-		this.gateway = properties.isConfigured() ? new AiGateway(properties, recorder) : null;
+		this.gateway = properties.isConfigured() ? new AiGateway(properties, recorder, meterRegistry) : null;
 
 		// 배포 로그에서 바로 보이게 한다. 심사 중 "왜 분석이 안 되지"를 설정에서 찾게 하려면
 		// 기동 시점에 한 줄이 있어야 한다

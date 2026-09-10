@@ -22,6 +22,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
 	// 스키마 변경은 Flyway로만. JPA는 validate만 한다 (TRD §1)
 	implementation("org.springframework.boot:spring-boot-starter-flyway")

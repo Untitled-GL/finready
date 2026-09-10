@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: FinReady
+    folder: FinReady
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

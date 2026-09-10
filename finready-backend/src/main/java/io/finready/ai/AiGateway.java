@@ -11,10 +11,14 @@ import com.anthropic.models.messages.TextBlockParam;
 import com.anthropic.models.messages.Usage;
 import io.finready.common.ApiException;
 import io.finready.common.ErrorCode;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Claude 호출 단일 지점. 프롬프트를 만드는 것은 각 포트 구현체가 하고, 여기서는
@@ -38,8 +42,15 @@ public class AiGateway {
 	private final AnthropicClient client;
 	private final AiProperties properties;
 	private final LlmCallRecorder recorder;
+	private final MeterRegistry meterRegistry;
+	private final ConcurrentHashMap<String, AtomicInteger> activeCalls = new ConcurrentHashMap<>();
 
 	public AiGateway(AiProperties properties, LlmCallRecorder recorder) {
+		this(properties, recorder, null);
+	}
+
+	public AiGateway(AiProperties properties, LlmCallRecorder recorder, MeterRegistry meterRegistry) {
+		this.meterRegistry = meterRegistry;
 		this.properties = properties;
 		this.recorder = recorder;
 		this.client = AnthropicOkHttpClient.builder()
@@ -64,6 +75,41 @@ public class AiGateway {
 	 *                      호출 자체가 실패하면 {@code AI_TIMEOUT}(503)
 	 */
 	public <T> T call(AiCall request, ResponseParser<T> parser) {
+		if (meterRegistry == null) {
+			return performCall(request, parser);
+		}
+		// One logical batch, including both retry layers and DB call logging.
+		// Never tag with session ID, transcript, or prompt version.
+		String stage = switch (request.stage()) {
+			case "COVERAGE_CLASSIFY", "SEMANTIC_VERIFY", "QUESTION_PHRASE", "ANSWER_JUDGE", "RE_EXPLANATION"
+					-> request.stage();
+			default -> "OTHER";
+		};
+		AtomicInteger active = activeCalls.computeIfAbsent(stage, key -> {
+			AtomicInteger value = new AtomicInteger();
+			meterRegistry.gauge("finready.ai.active", List.of(
+					io.micrometer.core.instrument.Tag.of("stage", key)), value);
+			return value;
+		});
+		active.incrementAndGet();
+		long started = System.nanoTime();
+		String outcome = "success";
+		try {
+			return performCall(request, parser);
+		} catch (ApiException ex) {
+			outcome = ex.code() == ErrorCode.AI_PARSING_FAILED ? "parse_error" : "call_error";
+			throw ex;
+		} catch (RuntimeException | Error ex) {
+			outcome = "internal_error";
+			throw ex;
+		} finally {
+			active.decrementAndGet();
+			meterRegistry.timer("finready.ai.call", "stage", stage, "outcome", outcome)
+					.record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
+		}
+	}
+
+	private <T> T performCall(AiCall request, ResponseParser<T> parser) {
 		RuntimeException lastFailure = null;
 
 		// attempt 는 1부터. TRD §7.1 의 "1회만 재시도" = 최대 2회 시도

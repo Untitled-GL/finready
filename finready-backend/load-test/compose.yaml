@@ -1,0 +1,114 @@
+name: finready-loadtest
+services:
+  db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: finready_loadtest
+      POSTGRES_USER: loadtest
+      POSTGRES_PASSWORD: local-only-password
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U loadtest -d finready_loadtest"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [isolated]
+
+  mock-claude:
+    image: node:22.19.0-alpine
+    working_dir: /mock
+    command: [node, server.mjs]
+    volumes:
+      - ./mock:/mock:ro
+    environment:
+      CLASSIFIER_DELAY_MS: ${CLASSIFIER_DELAY_MS:-8000}
+      VERIFIER_DELAY_MS: ${VERIFIER_DELAY_MS:-5000}
+      FAILURE_MODE: ${FAILURE_MODE:-none}
+      FAILURE_BATCH: R04
+      TIMEOUT_DELAY_MS: ${TIMEOUT_DELAY_MS:-65000}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:8081/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [isolated]
+
+  backend:
+    build:
+      context: ..
+      dockerfile: load-test/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: loadtest
+      DB_URL: jdbc:postgresql://db:5432/finready_loadtest?currentSchema=finready
+      DB_USERNAME: loadtest
+      DB_PASSWORD: local-only-password
+      LLM_API_KEY: mock-key-not-real
+      LLM_MODEL: claude-sonnet-4-6
+      LLM_BASE_URL: http://mock-claude:8081
+      LOADTEST_AI_TIMEOUT_SECONDS: ${LOADTEST_AI_TIMEOUT_SECONDS:-60}
+    depends_on:
+      db: {condition: service_healthy}
+      mock-claude: {condition: service_healthy}
+    ports: ["127.0.0.1:18080:8080"]
+    networks: [isolated]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver
+      - --storage.tsdb.retention.time=24h
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["127.0.0.1:19090:9090"]
+    networks: [isolated]
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_USER: local-admin
+      GF_SECURITY_ADMIN_PASSWORD: local-only-password
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["127.0.0.1:13000:3000"]
+    depends_on: [prometheus]
+    networks: [isolated]
+
+  k6:
+    image: grafana/k6:1.3.0
+    profiles: [tools]
+    working_dir: /scripts
+    volumes:
+      - ./k6:/scripts:ro
+    environment:
+      BASE_URL: http://backend:8080
+      MOCK_URL: http://mock-claude:8081
+      MODE: ${MODE:-smoke}
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(95),max,avg
+      K6_PROMETHEUS_RW_STALE_MARKERS: "true"
+    command: [run, -o, experimental-prometheus-rw, coverage.js]
+    networks: [isolated]
+
+  verify-db:
+    image: postgres:17.6-alpine
+    profiles: [tools]
+    environment:
+      PGHOST: db
+      PGUSER: loadtest
+      PGPASSWORD: local-only-password
+      PGDATABASE: finready_loadtest
+    volumes:
+      - ./verify-failure.sql:/checks/verify-failure.sql:ro
+    entrypoint: [psql, -v, ON_ERROR_STOP=1, -f, /checks/verify-failure.sql]
+    networks: [isolated]
+
+networks:
+  isolated:
+    internal: true

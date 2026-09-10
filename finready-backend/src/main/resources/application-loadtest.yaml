@@ -1,0 +1,17 @@
+# Activated only by the isolated load-test Compose environment.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        finready.ai.call: true
+      maximum-expected-value:
+        finready.ai.call: 300s
+        http.server.requests: 300s
+finready:
+  ai:
+    timeout-seconds: ${LOADTEST_AI_TIMEOUT_SECONDS:60}
